@@ -5,6 +5,7 @@ export const organisationsTable = pgTable("organisations", {
     id: serial().primaryKey(),
     name: varchar({ length: 255 }).notNull(),
     creatorID: integer("creatorID").references(() => usersTable.id).notNull(),
+    slug: varchar({ length: 255 }).notNull().unique(),
     address: text(), // Optional field - no .notNull()
     country: varchar({ length: 100 }), // Optional field - no .notNull()
     state: varchar({ length: 100 }), // Optional field - no .notNull()
