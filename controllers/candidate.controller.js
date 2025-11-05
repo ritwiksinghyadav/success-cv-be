@@ -1,13 +1,12 @@
 import jwt from 'jsonwebtoken';
 import { AppError, asyncHandler } from "../middleware/error.js";
-import { forgotpasswordTokenGeneration, GenerateVerificationTokenModel, getActiveVerificationDataByToken, markVerificationTokenAsUsedModel, resetPasswordUsingToken } from "../models/auth.model.js";
-import { createUserModel, getUserByEmailModel, verifyUserModel } from "../models/user.model.js";
-import { sendPasswordResetEmail, sendVerificationEmail } from "../services/email/emailTrigger.js";
+import { getUserByEmailModel } from "../models/user.model.js";
+import { sendPasswordResetEmail } from "../services/email/emailTrigger.js";
 import { destructureRequest, sendSuccess } from "../utils/apiHelpers.js";
 import { userTypeConstants } from "../utils/constants.js";
 import { validateEmail, validateString } from "../utils/validate-helper.js";
 import { comparePassword } from '../utils/security-helper.js';
-import { createCandidatesBulk } from '../models/candidate.model.js';
+import { createCandidatesBulk, forgotpasswordTokenGenerationCandidate, getCandidateByEmail, resetPasswordUsingToken } from '../models/candidate.model.js';
 
 export const registerBulkController = asyncHandler(async (req, res, next) => {
     if (!req.body || typeof req.body !== 'object') {
@@ -59,62 +58,19 @@ export const registerBulkController = asyncHandler(async (req, res, next) => {
     }
 });
 
-export const sendVerificationCodeController = asyncHandler(async (req, res, next) => {
-    const { email } = req.body;
-
-    const validatedEmail = validateEmail(email);
-
-    const existingUser = await getUserByEmailModel(validatedEmail);
-
-    if (!existingUser) {
-        throw new AppError('User with this email does not exist', 404);
-    }
-
-    if (existingUser.isVerified) {
-        throw new AppError('User is already verified', 400);
-    }
-
-    const verificationId = await GenerateVerificationTokenModel(email, userTypeConstants.USER);
-
-    if (verificationId && verificationId.id) {
-        sendVerificationEmail(email, existingUser.fullname, `${process.env.FRONTEND_URL}/verify/${verificationId.id}`);
-    }
-
-    sendSuccess(res, null, "A verification link has been sent. To your Email", 200);
-
-});
-
-export const confirmVerificationCodeController = asyncHandler(async (req, res, next) => {
-    const { token } = req.params;
-
-    const verificationData = await getActiveVerificationDataByToken(token);
-
-    if (!verificationData) {
-        return next(new AppError('Invalid or expired verification token', 400));
-    }
-
-    let user = await verifyUserModel(verificationData.userID);
-    if (user && user.isVerified) {
-        await markVerificationTokenAsUsedModel(verificationData.id);
-        sendSuccess(res, null, "User Is Verified Successfully", 200);
-    } else {
-        return next(new AppError('User verification failed', 500));
-    }
-});
-
 export const forgotPasswordController = asyncHandler(async (req, res, next) => {
     const { email } = req.body;
     if (!email) {
         return next(new AppError('Email is required', 400));
     }
-    let user = await getUserByEmailModel(email);
+    let user = await getCandidateByEmail(email);
 
     if (!user) {
         return next(new AppError('User not found', 404));
     }
 
     // add forgot password token generation and storage logic here (if needed)
-    const resetToken = await forgotpasswordTokenGeneration(user.id, userTypeConstants.USER);
+    const resetToken = await forgotpasswordTokenGenerationCandidate(user.id);
     if (!resetToken) {
         return next(new AppError('Failed to generate password reset token', 500));
     }
@@ -125,7 +81,7 @@ export const forgotPasswordController = asyncHandler(async (req, res, next) => {
 
 })
 
-export const resetPasswordController = asyncHandler(async (req, res, next) => {
+export const resetPasswordControllerCandidate = asyncHandler(async (req, res, next) => {
     const { newPassword } = req.body;
     const { token } = req.params;
 
@@ -143,7 +99,7 @@ export const resetPasswordController = asyncHandler(async (req, res, next) => {
     sendSuccess(res, null, 'Password has been reset successfully', 200);
 });
 
-export const LoginController = asyncHandler(async (req, res, next) => {
+export const LoginControllerCandidate = asyncHandler(async (req, res, next) => {
     // Validate body
     if (!req.body || typeof req.body !== 'object') {
         return next(new AppError('Invalid request body', 400));
@@ -155,14 +111,14 @@ export const LoginController = asyncHandler(async (req, res, next) => {
     const validatedPassword = validateString(password, 'Password');
 
     // Check if user exists (with password hash for verification)
-    const user = await getUserByEmailModel(validatedEmail, true);
+    const user = await getCandidateByEmail(validatedEmail, true);
     if (!user) {
         return next(new AppError('This user does not exist', 401));
     }
 
-    if (user.isVerified === false) {
-        return next(new AppError('User is not verified. Please verify your email before logging in.', 401));
-    }
+    // if (user.isVerified === false) {
+    //     return next(new AppError('User is not verified. Please verify your email before logging in.', 401));
+    // }
 
     if (user.deletedAt) {
         return next(new AppError('User account has been deleted.', 401));
@@ -176,12 +132,12 @@ export const LoginController = asyncHandler(async (req, res, next) => {
 
     // Generate tokens
     const accessToken = jwt.sign(
-        { id: user.id, email: user.email, type: userTypeConstants.USER },
+        { id: user.id, email: user.email, type: userTypeConstants.CANDIDATE },
         process.env.JWT_SECRET_ACCESS_KEY,
         { expiresIn: process.env.ACCESS_EXPIRES_IN }
     );
     const refreshToken = jwt.sign(
-        { id: user.id, email: user.email, type: userTypeConstants.USER },
+        { id: user.id, email: user.email, type: userTypeConstants.CANDIDATE },
         process.env.JWT_SECRET_REFRESH_KEY,
         { expiresIn: process.env.REFRESH_EXPIRES_IN }
     );
@@ -192,40 +148,4 @@ export const LoginController = asyncHandler(async (req, res, next) => {
         refreshToken
     }
     sendSuccess(res, data, "Login successful", 200)
-});
-
-export const refreshTokenController = asyncHandler(async (req, res, next) => {
-    const { refreshToken, token } = destructureRequest(req);
-
-    if (!refreshToken || !token) {
-        return next(new AppError('Refresh token and access token are required', 400));
-    }
-
-    try {
-        // Verify refresh token
-        const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET_REFRESH_KEY);
-
-        // Generate new tokens
-        const accessToken = jwt.sign(
-            { id: decoded.id, email: decoded.email, type: decoded.type },
-            process.env.JWT_SECRET_ACCESS_KEY,
-            { expiresIn: process.env.ACCESS_EXPIRES_IN }
-        );
-        const newRefreshToken = jwt.sign(
-            { id: decoded.id, email: decoded.email, type: decoded.type },
-            process.env.JWT_SECRET_REFRESH_KEY,
-            { expiresIn: process.env.REFRESH_EXPIRES_IN }
-        );
-
-        res.status(200).json({
-            success: true,
-            message: 'Token refreshed successfully',
-            data: {
-                accessToken,
-                refreshToken: newRefreshToken
-            }
-        });
-    } catch (error) {
-        return next(new AppError('Invalid or expired refresh token', 401));
-    }
 });

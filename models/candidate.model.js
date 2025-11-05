@@ -1,10 +1,13 @@
 import { eq, and, inArray, isNull } from "drizzle-orm";
 import { db } from "../config/db.js";
-import { candidatesTable } from "../drizzle/schema.js";
+import { candidatesTable, forgotPasswordTokenTable } from "../drizzle/schema.js";
 import { createProfile } from "./profile.model.js";
 import { AppError } from "../middleware/error.js";
 import { validateEmail, validateInteger, validateString } from "../utils/validate-helper.js";
 import { hashPassword, excludeFields } from "../utils/security-helper.js";
+import { userTypeConstants } from "../utils/constants.js";
+import crypto from 'crypto';
+import { forgotpasswordTokenValidation } from "./auth.model.js";
 
 /**
  * Create a single candidate
@@ -140,7 +143,7 @@ export const createCandidatesBulk = async (candidatesData) => {
 
         // Step 4: Hash all passwords in parallel
         const hashedCandidates = await Promise.all(hashPromises);
-        
+
         // Prepare for insertion
         const currentTime = new Date();
         hashedCandidates.forEach(candidate => {
@@ -287,4 +290,95 @@ export const deleteCandidate = async (id) => {
     } catch (error) {
         throw new AppError(`Failed to delete candidate: ${error.message}`, 500);
     }
+};
+
+export const updateCandidatePassword = async (id, newPassword) => {
+    try {
+        const validCandidateID = validateInteger(id, "Candidate ID", { min: 1 });
+        const validatedPassword = validateString(newPassword, "New Password", { minLength: 6 });
+        let passwordHash = await hashPassword(validatedPassword);
+        const [updatedCandidate] = await db.update(candidatesTable)
+            .set({ passwordHash: passwordHash })
+            .where(eq(candidatesTable.id, validCandidateID)).returning();
+
+        return updatedCandidate || null;
+    } catch (error) {
+        if (error instanceof AppError) {
+            throw error;
+        }
+        throw new AppError(`Failed to update candidate password: ${error.message}`, 500);
+    }
+}
+
+export const forgotpasswordTokenGenerationCandidate = async (id) => {
+    const validatedId = validateInteger(id, 'User ID');
+    try {
+        const activeToken = await checkActiveForgotPasswordTokenByUserId(validatedId);
+        if (activeToken) {
+            return activeToken.token;
+        }
+        const token = crypto.randomBytes(32).toString('hex');
+        let dataobj = {
+            token,
+            candidateID: validatedId,
+            userType: userTypeConstants.CANDIDATE
+        };
+
+        const newToken = await db.insert(forgotPasswordTokenTable).values({
+            ...dataobj,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            expiresAt: new Date(Date.now() + 3600000), // 1 hour expiry
+            isUsed: false
+        }).returning();
+
+        if (newToken && newToken[0] && newToken[0].token) {
+            return newToken[0].token;
+        }
+        return null;
+
+    } catch (error) {
+        if (error instanceof AppError) {
+            throw error;
+        }
+        throw new AppError(`Failed to generate forgot password token: ${error.message}`, 500);
+    }
+}
+
+export const checkActiveForgotPasswordTokenByUserId = async (userId) => {
+    const validatedUserId = validateInteger(userId, 'User ID');
+    try {
+        const [tokenData] = await db.select()
+            .from(forgotPasswordTokenTable)
+            .where(and(
+                eq(forgotPasswordTokenTable.candidateID, validatedUserId),
+                eq(forgotPasswordTokenTable.userType, userTypeConstants.CANDIDATE),
+                eq(forgotPasswordTokenTable.isUsed, false)
+            ))
+            .limit(1);
+
+        return tokenData || null;
+    } catch (error) {
+        if (error instanceof AppError) {
+            throw error;
+        }
+        throw new AppError(`Failed to check active forgot password token: ${error.message}`, 500);
+    }
+}
+
+export const resetPasswordUsingToken = async (token, newPassword) => {
+    // Validate the token
+    const tokenRecord = await forgotpasswordTokenValidation(token);
+
+    const updatedPasswordHash = await updateCandidatePassword(tokenRecord.candidateID, newPassword);
+
+    if (!updatedPasswordHash) {
+        throw new AppError('Failed to update password', 500);
+    }
+    // Mark the token as used
+    await db.update(forgotPasswordTokenTable).set({
+        isUsed: true,
+        updatedAt: new Date()
+    }).where(eq(forgotPasswordTokenTable.id, tokenRecord.id));
+    return true;
 };

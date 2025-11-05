@@ -1,7 +1,7 @@
 import { Router } from "express";
 import logger from "../../middleware/logger.js";
 import { sendSuccess } from "../../utils/apiHelpers.js";
-import { registerBulkController } from "../../controllers/candidate.controller.js";
+import { forgotPasswordController, LoginControllerCandidate, registerBulkController, resetPasswordControllerCandidate } from "../../controllers/candidate.controller.js";
 
 const router = Router();
 
@@ -17,8 +17,8 @@ router.post('/register/bulk', (req, res, next) => {
 
 router.post('/login', (req, res, next) => {
     logger.info("User login endpoint hit");
-    sendSuccess(res, null, "User logged in successfully");
-});
+    next();
+}, LoginControllerCandidate);
 
 router.post('/verify/send', (req, res, next) => {
     logger.info("Send verification code endpoint hit");
@@ -32,13 +32,13 @@ router.post('/verify/confirm', (req, res, next) => {
 
 router.post('/forgot-password', (req, res, next) => {
     logger.info("Forgot password endpoint hit");
-    sendSuccess(res, null, "Password reset link sent successfully");
-});
+    next();
+}, forgotPasswordController);
 
 router.post('/forgot-password/:token', (req, res, next) => {
     logger.info("Reset password endpoint hit");
-    sendSuccess(res, null, "Password reset successfully");
-});
+    next();
+}, resetPasswordControllerCandidate);
 
 
 
