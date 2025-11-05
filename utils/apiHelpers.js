@@ -44,3 +44,19 @@ export const sendSuccess = (res, data, message = "Success", statusCode = 200, me
 export const sendError = (res, message = "Error", statusCode = 500) => {
     return res.status(statusCode).json(errorResponse(message, statusCode));
 };
+
+export const destructureRequest = (req) => {
+    const headers = req.headers;
+    const method = req.method;
+    const url = req.url;
+    const body = req.body;
+    const token = req.headers['authorization'] ? req.headers['authorization'].split(' ')[1] : null;
+    const refreshToken = req.headers['x-refresh-token'] || null;
+    return { headers, method, url, body, token, refreshToken };
+}
+
+export const removeTimestampFields = (obj) => {
+
+    const { createdAt, updatedAt, id, ...cleanObj } = obj;
+    return cleanObj;
+}

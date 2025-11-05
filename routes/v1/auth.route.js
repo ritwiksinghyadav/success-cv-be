@@ -2,7 +2,7 @@ import { Router } from "express";
 import logger from "../../middleware/logger.js";
 import { sendSuccess } from "../../utils/apiHelpers.js";
 import { candidateAuthRoutes } from "./candidate-auth.route.js";
-import { confirmVerificationCodeController, forgotPasswordController, LoginController, registerController, resetPasswordController, sendVerificationCodeController } from "../../controllers/auth.controller.js";
+import { confirmVerificationCodeController, forgotPasswordController, LoginController, refreshTokenController, registerController, resetPasswordController, sendVerificationCodeController } from "../../controllers/auth.controller.js";
 
 const router = Router();
 
@@ -25,8 +25,8 @@ router.post('/login', (req, res, next) => {
 
 router.get('/refresh-token', (req, res, next) => {
     logger.info("Token refresh endpoint hit");
-    sendSuccess(res, null, "Token refreshed successfully");
-});
+    next();
+}, refreshTokenController);
 
 router.post('/verify/send', (req, res, next) => {
     logger.info("Send verification code endpoint hit");

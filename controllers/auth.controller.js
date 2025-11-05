@@ -3,7 +3,7 @@ import { AppError, asyncHandler } from "../middleware/error.js";
 import { forgotpasswordTokenGeneration, GenerateVerificationTokenModel, getActiveVerificationDataByToken, markVerificationTokenAsUsedModel, resetPasswordUsingToken } from "../models/auth.model.js";
 import { createUserModel, getUserByEmailModel, verifyUserModel } from "../models/user.model.js";
 import { sendPasswordResetEmail, sendVerificationEmail } from "../services/email/emailTrigger.js";
-import { sendSuccess } from "../utils/apiHelpers.js";
+import { destructureRequest, sendSuccess } from "../utils/apiHelpers.js";
 import { userTypeConstants } from "../utils/constants.js";
 import { validateEmail, validateString } from "../utils/validate-helper.js";
 import { comparePassword } from '../utils/security-helper.js';
@@ -170,4 +170,40 @@ export const LoginController = asyncHandler(async (req, res, next) => {
         refreshToken
     }
     sendSuccess(res, data, "Login successful", 200)
+});
+
+export const refreshTokenController = asyncHandler(async (req, res, next) => {
+    const { refreshToken, token } = destructureRequest(req);
+
+    if (!refreshToken || !token) {
+        return next(new AppError('Refresh token and access token are required', 400));
+    }
+
+    try {
+        // Verify refresh token
+        const decoded = jwt.verify(refreshToken, process.env.JWT_SECRET_REFRESH_KEY);
+
+        // Generate new tokens
+        const accessToken = jwt.sign(
+            { id: decoded.id, email: decoded.email, type: decoded.type },
+            process.env.JWT_SECRET_ACCESS_KEY,
+            { expiresIn: process.env.ACCESS_EXPIRES_IN }
+        );
+        const newRefreshToken = jwt.sign(
+            { id: decoded.id, email: decoded.email, type: decoded.type },
+            process.env.JWT_SECRET_REFRESH_KEY,
+            { expiresIn: process.env.REFRESH_EXPIRES_IN }
+        );
+
+        res.status(200).json({
+            success: true,
+            message: 'Token refreshed successfully',
+            data: {
+                accessToken,
+                refreshToken: newRefreshToken
+            }
+        });
+    } catch (error) {
+        return next(new AppError('Invalid or expired refresh token', 401));
+    }
 });
