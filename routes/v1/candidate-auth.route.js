@@ -1,7 +1,7 @@
 import { Router } from "express";
 import logger from "../../middleware/logger.js";
 import { sendSuccess } from "../../utils/apiHelpers.js";
-import { forgotPasswordController, LoginControllerCandidate, registerBulkController, resetPasswordControllerCandidate } from "../../controllers/candidate.controller.js";
+import { forgotPasswordController, LoginControllerCandidate, registerBulkController, resetPasswordControllerCandidate } from "../../controllers/candidate.auth.controller.js";
 
 const router = Router();
 

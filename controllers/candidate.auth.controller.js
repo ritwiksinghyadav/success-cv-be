@@ -1,8 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { AppError, asyncHandler } from "../middleware/error.js";
-import { getUserByEmailModel } from "../models/user.model.js";
 import { sendPasswordResetEmail } from "../services/email/emailTrigger.js";
-import { destructureRequest, sendSuccess } from "../utils/apiHelpers.js";
+import { sendSuccess } from "../utils/apiHelpers.js";
 import { userTypeConstants } from "../utils/constants.js";
 import { validateEmail, validateString } from "../utils/validate-helper.js";
 import { comparePassword } from '../utils/security-helper.js';
