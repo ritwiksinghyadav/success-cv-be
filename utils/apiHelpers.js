@@ -6,9 +6,12 @@
 export const successResponse = (data = null, message = "Success", meta = {}) => {
     const response = {
         success: true,
-        message,
-        data
+        message
     };
+
+    if (data !== null) {
+        response.data = data;
+    }
 
     if (Object.keys(meta).length > 0) {
         response.meta = meta;

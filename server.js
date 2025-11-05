@@ -5,6 +5,7 @@ import { sendSuccess } from "./utils/apiHelpers.js";
 import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
+import { v1Routes } from "./routes/v1/index.route.js";
 
 // Load environment variables
 dotenv.config();
@@ -42,6 +43,9 @@ app.get("/", (req, res) => {
 
     sendSuccess(res, apiInfo, "Welcome to Success-CV Backend API");
 });
+
+// API routes
+app.use("/api/v1",v1Routes);
 
 // Health check route
 app.get("/health-check", (req, res) => {

@@ -1,5 +1,5 @@
 import { boolean, integer, pgTable, timestamp, varchar, text, uuid, serial } from "drizzle-orm/pg-core";
-import { usersTable } from "./auth";
+import { usersTable } from "./auth.js";
 
 export const organisationsTable = pgTable("organisations", {
     id: serial().primaryKey(),
