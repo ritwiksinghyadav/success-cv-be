@@ -1,7 +1,7 @@
 import { AppError, asyncHandler } from "../middleware/error.js";
-import { GenerateVerificationTokenModel, getActiveVerificationDataByEmailModel, getActiveVerificationDataByToken, markVerificationTokenAsUsedModel } from "../models/auth.model.js";
+import { forgotpasswordTokenGeneration, GenerateVerificationTokenModel, getActiveVerificationDataByToken, markVerificationTokenAsUsedModel, resetPasswordUsingToken } from "../models/auth.model.js";
 import { createUserModel, getUserByEmailModel, verifyUserModel } from "../models/user.model.js";
-import { sendVerificationEmail } from "../services/email/emailTrigger.js";
+import { sendPasswordResetEmail, sendVerificationEmail } from "../services/email/emailTrigger.js";
 import { sendSuccess } from "../utils/apiHelpers.js";
 import { userTypeConstants } from "../utils/constants.js";
 import { validateEmail, validateString } from "../utils/validate-helper.js";
@@ -71,10 +71,51 @@ export const confirmVerificationCodeController = asyncHandler(async (req, res, n
 
     let user = await verifyUserModel(verificationData.userID);
     if (user && user.isVerified) {
-
         await markVerificationTokenAsUsedModel(verificationData.id);
         sendSuccess(res, null, "User Is Verified Successfully", 200);
     } else {
         return next(new AppError('User verification failed', 500));
     }
+});
+
+export const forgotPasswordController = asyncHandler(async (req, res, next) => {
+    const { email } = req.body;
+    if (!email) {
+        return next(new AppError('Email is required', 400));
+    }
+    let user = await getUserByEmailModel(email);
+
+    if (!user) {
+        return next(new AppError('User not found', 404));
+    }
+
+    // add forgot password token generation and storage logic here (if needed)
+    const resetToken = await forgotpasswordTokenGeneration(user.id, userTypeConstants.USER);
+    if (!resetToken) {
+        return next(new AppError('Failed to generate password reset token', 500));
+    }
+    // Send password reset email
+    await sendPasswordResetEmail(email, user.fullname, `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`);
+
+    sendSuccess(res, null, 'Password reset link has been sent to your email', 200);
+
+})
+
+export const resetPasswordController = asyncHandler(async (req, res, next) => {
+    const { newPassword } = req.body;
+    const { token } = req.params;
+
+    if (!token || !newPassword) {
+        return next(new AppError('Token and new password are required', 400));
+    }
+
+    // Check if the token is valid
+    const response = await resetPasswordUsingToken(token, newPassword);
+    console.log("RESET PASSWORD RESPONSE --", response);
+
+    if (!response) {
+        return next(new AppError('Invalid or expired token', 400));
+    }
+
+    sendSuccess(res, null, 'Password has been reset successfully', 200);
 });

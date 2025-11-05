@@ -95,3 +95,21 @@ export const verifyUserModel = async (id) => {
         throw new AppError(`Failed to get user by ID: ${error.message}`, 500);
     }
 }
+
+export const updateUserPasswordModel = async (id, newPassword) => {
+    try {
+        const validUserID = validateInteger(id, "User ID", { min: 1 });
+        const validatedPassword = validateString(newPassword, "New Password", { minLength: 6 });
+        let passwordHash = await hashPassword(validatedPassword);
+        const [updatedUser] = await db.update(usersTable)
+            .set({ passwordHash: passwordHash })
+            .where(eq(usersTable.id, validUserID)).returning();
+
+        return updatedUser || null;
+    } catch (error) {
+        if (error instanceof AppError) {
+            throw error;
+        }
+        throw new AppError(`Failed to update user password: ${error.message}`, 500);
+    }
+}

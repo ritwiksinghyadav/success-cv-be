@@ -2,7 +2,7 @@ import { Router } from "express";
 import logger from "../../middleware/logger.js";
 import { sendSuccess } from "../../utils/apiHelpers.js";
 import { candidateAuthRoutes } from "./candidate-auth.route.js";
-import { confirmVerificationCodeController, registerController, sendVerificationCodeController } from "../../controllers/auth.controller.js";
+import { confirmVerificationCodeController, forgotPasswordController, registerController, resetPasswordController, sendVerificationCodeController } from "../../controllers/auth.controller.js";
 
 const router = Router();
 
@@ -40,13 +40,13 @@ router.get('/verify/:token', (req, res, next) => {
 
 router.post('/forgot-password', (req, res, next) => {
     logger.info("Forgot password endpoint hit");
-    sendSuccess(res, null, "Password reset link sent successfully");
-});
+    next();
+}, forgotPasswordController);
 
 router.post('/forgot-password/:token', (req, res, next) => {
     logger.info("Reset password endpoint hit");
-    sendSuccess(res, null, "Password reset successfully");
-});
+    next();
+}, resetPasswordController);
 
 
 
