@@ -69,3 +69,31 @@ export const validateEmail = (email, fieldName = 'Email', required = true) => {
 
     return normalizedEmail;
 };
+
+export const validateSlug = (slug, fieldName = 'Slug', options = {}) => {
+    const { required = true, minLength = 1, maxLength = 100 } = options;
+
+    if (!required && (!slug || slug.trim() === '')) {
+        return null;
+    }
+
+    if (!slug || typeof slug !== 'string') {
+        throw new Error(`${fieldName} is required`);
+    }
+
+    const trimmedSlug = slug.trim();
+
+    // Slug regex: lowercase letters, numbers, and hyphens only
+    // Cannot start or end with hyphen, no consecutive hyphens
+    const slugRegex = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+    if (!slugRegex.test(trimmedSlug)) {
+        throw new Error(`${fieldName} must contain only lowercase letters, numbers, and hyphens. Cannot start/end with hyphen or have consecutive hyphens`);
+    }
+
+    if (trimmedSlug.length < minLength || trimmedSlug.length > maxLength) {
+        throw new Error(`${fieldName} must be between ${minLength} and ${maxLength} characters`);
+    }
+
+    return trimmedSlug;
+};

@@ -1,0 +1,51 @@
+import { Router } from "express";
+import logger from "../../middleware/logger.js";
+import { sendSuccess } from "../../utils/apiHelpers.js";
+import { authenticateUser } from "../../middleware/authenticate-routes.js";
+import { getUserByIdController, getUserProfileByUserID } from "../../controllers/user.controller.js";
+import { createOrgByUserIDController } from "../../controllers/organisation.controller.js";
+
+const router = Router();
+
+router.use(authenticateUser)
+
+router.get('/health', (req, res, next) => {
+    logger.info("API v1 AUTH User health route accessed");
+    sendSuccess(res, null, "Success-CV API v1 AUTH User is healthy");
+});
+
+router.post('/', (req, res, next) => {
+    logger.info("API v1 AUTH User route accessed for creating user");
+    sendSuccess(res, null, "Success-CV API v1 AUTH User created");
+});
+
+router.get('/:id', (req, res, next) => {
+    logger.info(`API v1 AUTH User route accessed for user ID: ${req.params.id}`);
+    next();
+}, getUserByIdController);
+
+router.put('/:id', (req, res, next) => {
+    const userId = req.params.id;
+    logger.info(`API v1 AUTH User route accessed for updating user ID: ${userId}`);
+    sendSuccess(res, { userId }, `Success-CV API v1 AUTH User updated for ID: ${userId}`);
+});
+
+router.get('/:id/organisations', (req, res, next) => {
+    const userId = req.params.id;
+    logger.info(`API v1 AUTH User organisations route accessed for user ID: ${userId}`);
+    sendSuccess(res, { userId }, `Success-CV API v1 AUTH User organisations data for ID: ${userId}`);
+});
+
+router.post('/:id/organisations', (req, res, next) => {
+    const userId = req.params.id;
+    logger.info(`API v1 AUTH User organisations route accessed for user ID: ${userId}`);
+    next();
+}, createOrgByUserIDController);
+
+
+router.get('/:id/profile', (req, res, next) => {
+    logger.info("API v1 AUTH User profile route accessed");
+    next()
+}, getUserProfileByUserID);
+
+export const userRoutes = router;

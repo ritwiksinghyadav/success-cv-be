@@ -71,7 +71,7 @@ export const getUserByIDModel = async (id) => {
         const [user] = await db.select()
             .from(usersTable)
             .where(eq(usersTable.id, validUserID));
-        return user || null;
+        return excludeFields(user, ['passwordHash', 'deletedAt']) || null;
     } catch (error) {
         if (error instanceof AppError) {
             throw error;
