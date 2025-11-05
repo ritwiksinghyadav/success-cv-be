@@ -1,40 +1,41 @@
 import { Router } from "express";
 import logger from "../../middleware/logger.js";
 import { sendSuccess } from "../../utils/apiHelpers.js";
+import { registerBulkController } from "../../controllers/candidate.controller.js";
 
 const router = Router();
 
-router.get('/health', (req, res) => {
+router.get('/health', (req, res, next) => {
     logger.info("API v1 AUTH health route accessed");
     sendSuccess(res, null, "Success-CV API v1 AUTH");
 });
 
-router.post('/register', (req, res) => {
-    logger.info("User registration endpoint hit");
-    sendSuccess(res, null, "User registered successfully");
-});
+router.post('/register/bulk', (req, res, next) => {
+    logger.info("User bulk registration endpoint hit");
+    next();
+}, registerBulkController);
 
-router.post('/login', (req, res) => {
+router.post('/login', (req, res, next) => {
     logger.info("User login endpoint hit");
     sendSuccess(res, null, "User logged in successfully");
 });
 
-router.post('/verify/send', (req, res) => {
+router.post('/verify/send', (req, res, next) => {
     logger.info("Send verification code endpoint hit");
     sendSuccess(res, null, "Verification code sent successfully");
 });
 
-router.post('/verify/confirm', (req, res) => {
+router.post('/verify/confirm', (req, res, next) => {
     logger.info("Confirm verification code endpoint hit");
     sendSuccess(res, null, "Verification code confirmed successfully");
 });
 
-router.post('/forgot-password', (req, res) => {
+router.post('/forgot-password', (req, res, next) => {
     logger.info("Forgot password endpoint hit");
     sendSuccess(res, null, "Password reset link sent successfully");
 });
 
-router.post('/forgot-password/:token', (req, res) => {
+router.post('/forgot-password/:token', (req, res, next) => {
     logger.info("Reset password endpoint hit");
     sendSuccess(res, null, "Password reset successfully");
 });
