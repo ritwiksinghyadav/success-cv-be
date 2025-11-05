@@ -111,7 +111,6 @@ export const resetPasswordController = asyncHandler(async (req, res, next) => {
 
     // Check if the token is valid
     const response = await resetPasswordUsingToken(token, newPassword);
-    console.log("RESET PASSWORD RESPONSE --", response);
 
     if (!response) {
         return next(new AppError('Invalid or expired token', 400));
