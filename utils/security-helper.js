@@ -20,3 +20,9 @@ export const excludeFields = (obj, fieldsToExclude = ['passwordHash', 'deletedAt
 
     return result;
 };
+export const comparePassword = async (password, hash) => {
+    if (!password || !hash) {
+        return false;
+    }
+    return await bcrypt.compare(password, hash);
+};

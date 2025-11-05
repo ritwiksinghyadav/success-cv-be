@@ -1,3 +1,4 @@
+import jwt from 'jsonwebtoken';
 import { AppError, asyncHandler } from "../middleware/error.js";
 import { forgotpasswordTokenGeneration, GenerateVerificationTokenModel, getActiveVerificationDataByToken, markVerificationTokenAsUsedModel, resetPasswordUsingToken } from "../models/auth.model.js";
 import { createUserModel, getUserByEmailModel, verifyUserModel } from "../models/user.model.js";
@@ -5,6 +6,7 @@ import { sendPasswordResetEmail, sendVerificationEmail } from "../services/email
 import { sendSuccess } from "../utils/apiHelpers.js";
 import { userTypeConstants } from "../utils/constants.js";
 import { validateEmail, validateString } from "../utils/validate-helper.js";
+import { comparePassword } from '../utils/security-helper.js';
 
 export const registerController = asyncHandler(async (req, res, next) => {
     if (!req.body || typeof req.body !== 'object') {
@@ -117,4 +119,55 @@ export const resetPasswordController = asyncHandler(async (req, res, next) => {
     }
 
     sendSuccess(res, null, 'Password has been reset successfully', 200);
+});
+
+export const LoginController = asyncHandler(async (req, res, next) => {
+    // Validate body
+    if (!req.body || typeof req.body !== 'object') {
+        return next(new AppError('Invalid request body', 400));
+    }
+
+    // Validate inputs
+    const { email, password } = req.body;
+    const validatedEmail = validateEmail(email);
+    const validatedPassword = validateString(password, 'Password');
+
+    // Check if user exists (with password hash for verification)
+    const user = await getUserByEmailModel(validatedEmail, true);
+    if (!user) {
+        return next(new AppError('This user does not exist', 401));
+    }
+
+    if (user.isVerified === false) {
+        return next(new AppError('User is not verified. Please verify your email before logging in.', 401));
+    }
+
+    if (user.deletedAt) {
+        return next(new AppError('User account has been deleted.', 401));
+    }
+
+    // Verify password using secure utility
+    const isPasswordValid = await comparePassword(validatedPassword, user.passwordHash);
+    if (!isPasswordValid) {
+        return next(new AppError('Invalid credentials', 401));
+    }
+
+    // Generate tokens
+    const accessToken = jwt.sign(
+        { id: user.id, email: user.email, type: userTypeConstants.USER },
+        process.env.JWT_SECRET_ACCESS_KEY,
+        { expiresIn: process.env.ACCESS_EXPIRES_IN }
+    );
+    const refreshToken = jwt.sign(
+        { id: user.id, email: user.email, type: userTypeConstants.USER },
+        process.env.JWT_SECRET_REFRESH_KEY,
+        { expiresIn: process.env.REFRESH_EXPIRES_IN }
+    );
+
+    let data = {
+        user: { id: user.id, fullname: user.fullname, email: user.email, isVerified: user.isVerified },
+        accessToken,
+        refreshToken
+    }
+    sendSuccess(res, data, "Login successful", 200)
 });

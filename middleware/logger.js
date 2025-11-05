@@ -18,12 +18,24 @@ class Logger {
         const statusCode = res.statusCode;
         const method = req.method;
         const url = req.originalUrl;
+        const headers = req.headers;
+        const body = req.body;
+        const token = req.headers['authorization'] ? req.headers['authorization'].split(' ')[1] : null;
+        const refreshToken = req.headers['x-refresh-token'] || null;
+        
         const logMessage = `${method} ${url} - ${statusCode} (${duration}ms)`;
         
+        const logData = {
+            headers,
+            body,
+            ...(token && { token }),
+            ...(refreshToken && { refreshToken })
+        };
+        
         if (statusCode >= 400) {
-            this.error(`API Call Failed: ${logMessage}`);
+            this.error(`API Call Failed: ${logMessage}`, logData);
         } else {
-            this.info(`API Call: ${logMessage}`);
+            this.info(`API Call: ${logMessage}`, logData);
         }
     }
 }

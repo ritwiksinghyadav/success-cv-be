@@ -2,7 +2,7 @@ import { Router } from "express";
 import logger from "../../middleware/logger.js";
 import { sendSuccess } from "../../utils/apiHelpers.js";
 import { candidateAuthRoutes } from "./candidate-auth.route.js";
-import { confirmVerificationCodeController, forgotPasswordController, registerController, resetPasswordController, sendVerificationCodeController } from "../../controllers/auth.controller.js";
+import { confirmVerificationCodeController, forgotPasswordController, LoginController, registerController, resetPasswordController, sendVerificationCodeController } from "../../controllers/auth.controller.js";
 
 const router = Router();
 
@@ -20,8 +20,8 @@ router.post('/register', (req, res, next) => {
 
 router.post('/login', (req, res, next) => {
     logger.info("User login endpoint hit");
-    sendSuccess(res, null, "User logged in successfully");
-});
+    next();
+}, LoginController);
 
 router.get('/refresh-token', (req, res, next) => {
     logger.info("Token refresh endpoint hit");
