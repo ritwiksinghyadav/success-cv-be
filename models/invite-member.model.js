@@ -1,6 +1,6 @@
 import { eq, and } from "drizzle-orm";
 import { db } from "../config/db.js";
-import { inviteTable, orgMembersTable } from "../drizzle/schema.js";
+import { inviteTable, orgMembersTable, usersTable } from "../drizzle/schema.js";
 import { AppError } from "../middleware/error.js";
 import { getUserByEmailModel, getUserByIDModel } from "./user.model.js";
 import { getOrgByID } from "./organisation.model.js";
@@ -209,3 +209,49 @@ export const addOrganisationMemberByUserId = async (orgID, userID, refID = null,
 
     return memberData;
 };
+
+export const ResendInvite = async (id) => {
+
+    const invite = await getInviteById(id);
+    if (!invite) {
+        throw new AppError(invite.message || 'Invite not found', 404);
+    }
+    let inviteLink = generateInviteLink(invite.id);
+
+    sendEmail(
+        invite.email,
+        'You have been invited to join an organisation',
+        `<p>Click the link below to accept your invitation:</p><p><a href="${inviteLink}">${inviteLink}</a></p>`
+    );
+    return { invite, inviteLink };
+
+}
+
+export const getAllMembersofOrganisation = async (orgID) => {
+
+    const validOrgID = validateInteger(orgID, 'Organisation ID');
+    const existingOrg = await getOrgByID(validOrgID);
+    if (!existingOrg) {
+        throw new AppError('Organisation not found', 404);
+    }
+    try {
+        const members = await db.select({
+            id: orgMembersTable.id,
+            userID: orgMembersTable.userID,
+            organisationID: orgMembersTable.organisationID,
+            role: orgMembersTable.role,
+            inviteRef: orgMembersTable.inviteRef,
+            joinedAt: orgMembersTable.joinedAt,
+            // User details from join
+            userName: usersTable.fullname,
+            userEmail: usersTable.email
+        })
+            .from(orgMembersTable)
+            .innerJoin(usersTable, eq(orgMembersTable.userID, usersTable.id))
+            .where(eq(orgMembersTable.organisationID, validOrgID));
+
+        return members;
+    } catch (error) {
+        throw new AppError('Failed to retrieve organisation members', 500);
+    }
+}

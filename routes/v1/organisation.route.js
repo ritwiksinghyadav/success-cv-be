@@ -1,7 +1,7 @@
 import { Router } from "express";
 import logger from "../../middleware/logger.js";
 import { sendSuccess } from "../../utils/apiHelpers.js";
-import { createOrgByUserIDController, inviteAMemberController } from "../../controllers/organisation.controller.js";
+import { createOrgByUserIDController, getAllMembersofOrganisationController, inviteAMemberController } from "../../controllers/organisation.controller.js";
 import { authenticateUser, commonAuthenticate } from "../../middleware/authenticate-routes.js";
 
 const router = Router();
@@ -39,8 +39,8 @@ router.post('/:id/invites', (req, res, next) => {
 router.get('/:id/members', (req, res, next) => {
     const orgId = req.params.id;
     logger.info(`API v1 AUTH Organisation members route accessed for organisation ID: ${orgId}`);
-    sendSuccess(res, { orgId }, `Success-CV API v1 AUTH Organisation members for ID: ${orgId}`);
-});
+    next()
+}, getAllMembersofOrganisationController);
 
 router.post('/:id/members', (req, res, next) => {
     const orgId = req.params.id;
