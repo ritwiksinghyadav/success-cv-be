@@ -6,6 +6,8 @@ import cors from "cors";
 import helmet from "helmet";
 import dotenv from "dotenv";
 import { v1Routes } from "./routes/v1/index.route.js";
+import swaggerUi from "swagger-ui-express";
+import { swaggerSpec } from "./config/swagger.config.js";
 
 // Load environment variables
 dotenv.config();
@@ -43,6 +45,12 @@ app.get("/", (req, res) => {
 
     sendSuccess(res, apiInfo, "Welcome to Success-CV Backend API");
 });
+
+// Swagger documentation
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: "Success-CV API Docs"
+}));
 
 // API routes
 app.use("/api/v1",v1Routes);
