@@ -1,10 +1,12 @@
 import { AppError, asyncHandler } from "../middleware/error.js";
+import { acceptInvite, addOrganisationMemberByUserId, inviteSingleMember } from "../models/invite-member.model.js";
 import { createOrg } from "../models/organisation.model.js";
 import { getProfileByUserId } from "../models/profile.model.js";
 import { getUserByIDModel } from "../models/user.model.js";
 import { sendSuccess } from "../utils/apiHelpers.js";
+import { memberTypeConstants } from "../utils/constants.js";
 import { excludeFields } from "../utils/security-helper.js";
-import { validateInteger } from "../utils/validate-helper.js";
+import { validateEmail, validateInteger } from "../utils/validate-helper.js";
 
 
 
@@ -25,7 +27,28 @@ export const createOrgByUserIDController = asyncHandler(async (req, res, next) =
     if (!createdOrg) {
         return next(new AppError('Organisation creation failed', 500));
     }
-
+    const createMember = await addOrganisationMemberByUserId(createdOrg.id, validatedId, null, memberTypeConstants.ADMIN);
     sendSuccess(res, createdOrg, "Organisation created successfully");
 });
 
+export const inviteAMemberController = asyncHandler(async (req, res, next) => {
+
+    const { email, role = memberTypeConstants.MEMBER } = req.body;
+    const { id } = req.params;
+
+    const validatedOrgId = validateInteger(id, 'Organisation ID');
+    const validatedEmail = validateEmail(email);
+
+    const result = await inviteSingleMember(req.userID, validatedOrgId, validatedEmail, role);
+
+    sendSuccess(res, result.inviteLink, "Member invited successfully", 200);
+})
+
+export const acceptInviteController = asyncHandler(async (req, res, next) => {
+    const { inviteID } = req.params;
+    const userId = req.userID;
+
+    const result = await acceptInvite(inviteID, userId);
+
+    sendSuccess(res, result, "Invite accepted successfully", 200);
+});
