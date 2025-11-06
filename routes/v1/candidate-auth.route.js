@@ -11,12 +11,12 @@ router.get('/health', (req, res, next) => {
 });
 
 router.post('/register/bulk', (req, res, next) => {
-    logger.info("User bulk registration endpoint hit");
+    logger.info("Bulk candidate registration endpoint hit");
     next();
 }, registerBulkController);
 
 router.post('/login', (req, res, next) => {
-    logger.info("User login endpoint hit");
+    logger.info("Candidate login endpoint hit");
     next();
 }, LoginControllerCandidate);
 
@@ -25,9 +25,9 @@ router.post('/verify/send', (req, res, next) => {
     sendSuccess(res, null, "Verification code sent successfully");
 });
 
-router.post('/verify/confirm', (req, res, next) => {
+router.get('/verify/:token', (req, res, next) => {
     logger.info("Confirm verification code endpoint hit");
-    sendSuccess(res, null, "Verification code confirmed successfully");
+    sendSuccess(res, null, "Email verified successfully");
 });
 
 router.post('/forgot-password', (req, res, next) => {
@@ -39,7 +39,5 @@ router.post('/forgot-password/:token', (req, res, next) => {
     logger.info("Reset password endpoint hit");
     next();
 }, resetPasswordControllerCandidate);
-
-
 
 export const candidateAuthRoutes = router;

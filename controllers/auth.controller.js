@@ -15,6 +15,17 @@ export const registerController = asyncHandler(async (req, res, next) => {
 
     const { fullname, email, password } = req.body;
 
+    // Check for missing required fields
+    if (!fullname) {
+        return next(new AppError('fullname is required. Please provide a fullname field (not "name").', 400));
+    }
+    if (!email) {
+        return next(new AppError('email is required', 400));
+    }
+    if (!password) {
+        return next(new AppError('password is required', 400));
+    }
+
     const validatedData = {
         fullname: validateString(fullname, 'Name', { maxLength: 255 }),
         email: validateEmail(email),
