@@ -10,7 +10,10 @@ import { validateInteger } from "../utils/validate-helper.js";
 
 export const createOrgByUserIDController = asyncHandler(async (req, res, next) => {
 
-    const { id } = req.params;
+    // const { id } = req.params;
+    const id = req.userID
+    console.log("USERID", req.userID);
+
     const validatedId = validateInteger(id, 'User ID');
     const user = await getUserByIDModel(validatedId);
     if (!user) {

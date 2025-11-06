@@ -3,6 +3,7 @@ import { sendSuccess } from "../../utils/apiHelpers.js";
 import { authRoutes } from "./auth.route.js";
 import logger from "../../middleware/logger.js";
 import { userRoutes } from "./user.route.js";
+import { organisationRoutes } from "./organisation.route.js";
 
 const router = Router();
 
@@ -21,6 +22,7 @@ router.get('/health', (req, res) => {
 });
 
 router.use('/auth', authRoutes);
-router.use('/user', userRoutes)
+router.use('/user', userRoutes);
+router.use('/organisations', organisationRoutes);
 
 export const v1Routes = router;
