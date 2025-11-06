@@ -72,19 +72,27 @@ const options = {
                     type: 'object',
                     properties: {
                         id: {
-                            type: 'string',
-                            example: '123e4567-e89b-12d3-a456-426614174000'
+                            type: 'integer',
+                            example: 1
                         },
                         email: {
                             type: 'string',
                             format: 'email',
                             example: 'user@example.com'
                         },
-                        name: {
+                        fullname: {
                             type: 'string',
                             example: 'John Doe'
                         },
+                        isVerified: {
+                            type: 'boolean',
+                            example: false
+                        },
                         createdAt: {
+                            type: 'string',
+                            format: 'date-time'
+                        },
+                        updatedAt: {
                             type: 'string',
                             format: 'date-time'
                         }
@@ -92,7 +100,7 @@ const options = {
                 },
                 RegisterRequest: {
                     type: 'object',
-                    required: ['email', 'password', 'name'],
+                    required: ['email', 'password', 'fullname'],
                     properties: {
                         email: {
                             type: 'string',
@@ -105,8 +113,9 @@ const options = {
                             minLength: 8,
                             example: 'SecurePass123!'
                         },
-                        name: {
+                        fullname: {
                             type: 'string',
+                            maxLength: 255,
                             example: 'John Doe'
                         }
                     }
@@ -142,9 +151,28 @@ const options = {
                             type: 'object',
                             properties: {
                                 user: {
-                                    $ref: '#/components/schemas/User'
+                                    type: 'object',
+                                    properties: {
+                                        id: {
+                                            type: 'integer',
+                                            example: 1
+                                        },
+                                        fullname: {
+                                            type: 'string',
+                                            example: 'John Doe'
+                                        },
+                                        email: {
+                                            type: 'string',
+                                            format: 'email',
+                                            example: 'user@example.com'
+                                        },
+                                        isVerified: {
+                                            type: 'boolean',
+                                            example: true
+                                        }
+                                    }
                                 },
-                                token: {
+                                accessToken: {
                                     type: 'string',
                                     example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
                                 },
@@ -164,7 +192,7 @@ const options = {
             }
         ]
     },
-    apis: ['./routes/**/*.js', './controllers/**/*.js'] // Path to the API routes
+    apis: ['./docs/swagger/**/*.js'] // Path to the API documentation files
 };
 
 export const swaggerSpec = swaggerJsdoc(options);

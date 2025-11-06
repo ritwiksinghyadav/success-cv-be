@@ -8,6 +8,10 @@ import dotenv from "dotenv";
 import { v1Routes } from "./routes/v1/index.route.js";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger.config.js";
+import { connectRedis, disconnectRedis, bullMQConnection } from "./config/redis.config.js";
+import { closeAllQueues } from "./queues/index.js";
+import pubSubService from "./services/pubsub.service.js";
+import sseService from "./services/sse.service.js";
 
 // Load environment variables
 dotenv.config();
@@ -75,10 +79,52 @@ app.use(errorLogger);
 app.use(notFound);
 app.use(errorHandler);
 
+// Initialize services
+async function initializeServices() {
+    try {
+        // Connect to Redis
+        await connectRedis();
+        
+        // Initialize PubSub service with Redis configuration
+        await pubSubService.initialize({
+            host: process.env.REDIS_HOST || 'localhost',
+            port: parseInt(process.env.REDIS_PORT) || 6379,
+            username: process.env.REDIS_USERNAME || 'default',
+            password: process.env.REDIS_PASSWORD || undefined,
+            db: parseInt(process.env.REDIS_DB_CACHE) || 0,
+            tls: process.env.REDIS_TLS === 'true'
+        });
+        
+        logger.info('All services initialized successfully');
+    } catch (error) {
+        logger.error('Failed to initialize services', { error: error.message });
+        throw error;
+    }
+}
+
 // Graceful shutdown handling
-const gracefulShutdown = (signal) => {
-    logShutdown(signal);
-    process.exit(0);
+const gracefulShutdown = async (signal) => {
+    logger.info(`${signal} received, starting graceful shutdown...`);
+    
+    try {
+        // Close SSE connections
+        await sseService.closeAllConnections();
+        
+        // Disconnect PubSub service
+        await pubSubService.disconnect();
+        
+        // Close Redis connections
+        await disconnectRedis();
+        
+        // Close all queue connections
+        await closeAllQueues();
+        
+        logShutdown(signal);
+        process.exit(0);
+    } catch (error) {
+        logger.error('Error during graceful shutdown', { error: error.message });
+        process.exit(1);
+    }
 };
 
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
@@ -102,11 +148,21 @@ process.on('unhandledRejection', (reason, promise) => {
     process.exit(1);
 });
 
-// Start the server
-app.listen(PORT, () => {
+// Start the server with service initialization
+const server = app.listen(PORT, async () => {
     logger.info(`Server is running on port ${PORT}`, {
         port: PORT,
         environment: NODE_ENV,
         timestamp: new Date().toISOString()
     });
+    
+    // Initialize services after server starts
+    try {
+        await initializeServices();
+    } catch (error) {
+        logger.error('Failed to initialize services, shutting down...', { 
+            error: error.message 
+        });
+        process.exit(1);
+    }
 });
