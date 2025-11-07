@@ -22,6 +22,7 @@ class PubSubService {
     async initialize(redisConfig) {
         try {
             // Create separate connections for publishing and subscribing
+            // ioredis connects automatically, no need to call connect()
             this.publisher = new Redis({
                 host: redisConfig.host,
                 port: redisConfig.port,
@@ -30,7 +31,6 @@ class PubSubService {
                 db: redisConfig.db || 0,
                 maxRetriesPerRequest: null,
                 enableReadyCheck: false,
-                enableOfflineQueue: false,
                 ...(redisConfig.tls && {
                     tls: {
                         rejectUnauthorized: false
@@ -46,7 +46,6 @@ class PubSubService {
                 db: redisConfig.db || 0,
                 maxRetriesPerRequest: null,
                 enableReadyCheck: false,
-                enableOfflineQueue: false,
                 ...(redisConfig.tls && {
                     tls: {
                         rejectUnauthorized: false
@@ -57,9 +56,24 @@ class PubSubService {
             // Set up event listeners
             this.setupEventListeners();
 
+            // Wait for both connections to be ready
             await Promise.all([
-                this.publisher.connect(),
-                this.subscriber.connect()
+                new Promise((resolve, reject) => {
+                    if (this.publisher.status === 'ready') {
+                        resolve();
+                    } else {
+                        this.publisher.once('ready', resolve);
+                        this.publisher.once('error', reject);
+                    }
+                }),
+                new Promise((resolve, reject) => {
+                    if (this.subscriber.status === 'ready') {
+                        resolve();
+                    } else {
+                        this.subscriber.once('ready', resolve);
+                        this.subscriber.once('error', reject);
+                    }
+                })
             ]);
 
             this.isConnected = true;
