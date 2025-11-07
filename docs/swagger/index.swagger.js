@@ -2,15 +2,19 @@
  * @swagger
  * tags:
  *   - name: Auth
- *     description: Authentication and authorization endpoints
+ *     description: Authentication and authorization endpoints for users
  *   - name: Candidate Auth
  *     description: Candidate authentication and bulk registration endpoints
  *   - name: User
- *     description: User management endpoints
+ *     description: User management and profile endpoints
+ *   - name: Organisation
+ *     description: Organisation management, members, and invitations
+ *   - name: Invites
+ *     description: Invitation management and acceptance endpoints
  *   - name: SSE (Server-Sent Events)
  *     description: Real-time updates via Server-Sent Events
  *   - name: Health
- *     description: Health check endpoints
+ *     description: Health check and system monitoring endpoints
  */
 
 /**
@@ -43,5 +47,11 @@
  *                       type: array
  *                       items:
  *                         type: string
- *                       example: ["GET /api/v1/health", "Additional endpoints will be added here"]
+ *                       example: [
+ *                         "GET /api/v1/health",
+ *                         "GET /api/v1/health/redis",
+ *                         "GET /api/v1/health/queue", 
+ *                         "GET /api/v1/health/cache",
+ *                         "GET /api/v1/health/full"
+ *                       ]
  */

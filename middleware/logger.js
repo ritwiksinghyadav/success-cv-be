@@ -26,7 +26,7 @@ class Logger {
         const logMessage = `${method} ${url} - ${statusCode} (${duration}ms)`;
         
         const logData = {
-            headers,
+            // headers,
             body,
             ...(token && { token }),
             ...(refreshToken && { refreshToken })

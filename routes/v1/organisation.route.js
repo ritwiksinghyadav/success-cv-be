@@ -48,7 +48,7 @@ router.post('/:id/members', (req, res, next) => {
     sendSuccess(res, { orgId }, `Success-CV API v1 AUTH Add member to organisation ID: ${orgId}`);
 });
 
-router.patch('/id/members/:memberId/role', (req, res, next) => {
+router.patch('/:id/members/:memberId/role', (req, res, next) => {
     const { id: orgId, memberId } = req.params;
     logger.info(`API v1 AUTH Update member role route accessed for organisation ID: ${orgId}, member ID: ${memberId}`);
     sendSuccess(res, { orgId, memberId }, `Success-CV API v1 AUTH Update member role for organisation ID: ${orgId}, member ID: ${memberId}`);

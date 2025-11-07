@@ -1,5 +1,52 @@
 /**
  * @swagger
+ * tags:
+ *   - name: Health
+ *     description: Health check and monitoring endpoints
+ */
+
+/**
+ * @swagger
+ * /api/v1/health:
+ *   get:
+ *     summary: Main API health check
+ *     description: Returns the main health status of the API with endpoint information
+ *     tags: [Health]
+ *     responses:
+ *       200:
+ *         description: API is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Success-CV API v1
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     version:
+ *                       type: string
+ *                       example: "v1"
+ *                     endpoints:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: [
+ *                         "GET /api/v1/health",
+ *                         "GET /api/v1/health/redis",
+ *                         "GET /api/v1/health/queue",
+ *                         "GET /api/v1/health/cache",
+ *                         "GET /api/v1/health/full"
+ *                       ]
+ */
+
+/**
+ * @swagger
  * /api/v1/health/redis:
  *   get:
  *     summary: Check Redis connections health
