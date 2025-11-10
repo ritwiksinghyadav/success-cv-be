@@ -245,12 +245,13 @@
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Success'
- *       400:
- *         description: Invalid or expired token
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
+       400:
+         description: Invalid or expired token
+         content:
+           application/json:
+             schema:
+               $ref: '#/components/schemas/Error'
+ */
 
 /**
  * @swagger

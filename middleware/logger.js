@@ -13,6 +13,10 @@ class Logger {
         console.log(`[${getTimestamp()}] INFO: ${message}`, meta);
     }
 
+    warn(message, meta = {}) {
+        console.warn(`[${getTimestamp()}] WARN: ${message}`, meta);
+    }
+
     // Log API requests
     request(req, res, duration) {
         const statusCode = res.statusCode;

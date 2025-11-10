@@ -3,7 +3,7 @@ import logger from "../../middleware/logger.js";
 import { sendSuccess } from "../../utils/apiHelpers.js";
 import { authenticateUser } from "../../middleware/authenticate-routes.js";
 import { getUserByIdController, getUserProfileByUserID } from "../../controllers/user.controller.js";
-import { createOrgByUserIDController } from "../../controllers/organisation.controller.js";
+import { createOrgByUserIDController, getOrgsByUserIDController } from "../../controllers/organisation.controller.js";
 
 const router = Router();
 
@@ -33,8 +33,8 @@ router.put('/:id', (req, res, next) => {
 router.get('/:id/organisations', (req, res, next) => {
     const userId = req.params.id;
     logger.info(`API v1 AUTH User organisations route accessed for user ID: ${userId}`);
-    sendSuccess(res, { userId }, `Success-CV API v1 AUTH User organisations data for ID: ${userId}`);
-});
+    next();
+}, getOrgsByUserIDController);
 
 router.post('/:id/organisations', (req, res, next) => {
     const userId = req.params.id;

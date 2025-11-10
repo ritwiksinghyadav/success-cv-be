@@ -1,6 +1,6 @@
 import { AppError, asyncHandler } from "../middleware/error.js";
 import { acceptInvite, addOrganisationMemberByUserId, getAllMembersofOrganisation, inviteSingleMember, ResendInvite } from "../models/invite-member.model.js";
-import { createOrg } from "../models/organisation.model.js";
+import { createOrg, getOrgsByUserID } from "../models/organisation.model.js";
 import { getProfileByUserId } from "../models/profile.model.js";
 import { getUserByIDModel } from "../models/user.model.js";
 import { sendSuccess } from "../utils/apiHelpers.js";
@@ -68,4 +68,19 @@ export const getAllMembersofOrganisationController = asyncHandler(async (req, re
     const result = await getAllMembersofOrganisation(id);
 
     sendSuccess(res, result, "Organisation members retrieved successfully", 200);
+});
+
+export const getOrgsByUserIDController = asyncHandler(async (req, res, next) => {
+    const { id } = req.params;
+    
+    const validatedId = validateInteger(id, 'User ID');
+    const user = await getUserByIDModel(validatedId);
+    
+    if (!user) {
+        return next(new AppError('User not found', 404));
+    }
+
+    const organisations = await getOrgsByUserID(validatedId);
+
+    sendSuccess(res, organisations, "User organisations retrieved successfully", 200);
 });

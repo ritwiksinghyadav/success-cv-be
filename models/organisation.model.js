@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { db } from "../config/db.js";
-import { organisationsTable } from "../drizzle/schema.js";
+import { organisationsTable, orgMembersTable } from "../drizzle/schema.js";
 import { excludeFields } from "../utils/security-helper.js";
 import { validateInteger, validateSlug, validateString } from "../utils/validate-helper.js";
 import { AppError } from "../middleware/error.js";
@@ -68,5 +68,38 @@ export const getOrgByID = async (id) => {
         throw new AppError(`Failed to get organisation by ID: ${error.message}`, 500);
     }
 }
+
+export const getOrgsByUserID = async (userId) => {
+    try {
+        const validUserId = validateInteger(userId, "User ID", { min: 1 });
+        
+        const organisations = await db.select({
+            id: organisationsTable.id,
+            name: organisationsTable.name,
+            slug: organisationsTable.slug,
+            creatorID: organisationsTable.creatorID,
+            address: organisationsTable.address,
+            country: organisationsTable.country,
+            state: organisationsTable.state,
+            city: organisationsTable.city,
+            createdAt: organisationsTable.createdAt,
+            updatedAt: organisationsTable.updatedAt,
+            // Member-specific info
+            memberRole: orgMembersTable.role,
+            joinedAt: orgMembersTable.joinedAt,
+        })
+        .from(orgMembersTable)
+        .innerJoin(organisationsTable, eq(orgMembersTable.organisationID, organisationsTable.id))
+        .where(eq(orgMembersTable.userID, validUserId));
+
+        return organisations;
+    } catch (error) {
+        if (error instanceof AppError) {
+            throw error;
+        }
+        throw new AppError(`Failed to get organisations for user: ${error.message}`, 500);
+    }
+}
+
 
 
