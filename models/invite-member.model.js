@@ -255,3 +255,20 @@ export const getAllMembersofOrganisation = async (orgID) => {
         throw new AppError('Failed to retrieve organisation members', 500);
     }
 }
+
+export const getAllInvitesOfOrganisation = async (orgID) => {
+    const validOrgID = validateInteger(orgID, 'Organisation ID');
+    const existingOrg = await getOrgByID(validOrgID);
+    if (!existingOrg) {
+        throw new AppError('Organisation not found', 404);
+    }
+    try {
+        const invites = await db.select()
+            .from(inviteTable)
+            .where(eq(inviteTable.organisationID, validOrgID));
+
+        return invites;
+    } catch (error) {
+        throw new AppError('Failed to retrieve organisation invites', 500);
+    }
+}

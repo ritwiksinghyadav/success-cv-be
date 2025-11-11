@@ -1,5 +1,5 @@
 import { AppError, asyncHandler } from "../middleware/error.js";
-import { acceptInvite, addOrganisationMemberByUserId, getAllMembersofOrganisation, inviteSingleMember, ResendInvite } from "../models/invite-member.model.js";
+import { acceptInvite, addOrganisationMemberByUserId, getAllMembersofOrganisation, getAllInvitesOfOrganisation, inviteSingleMember, ResendInvite } from "../models/invite-member.model.js";
 import { createOrg, getOrgsByUserID } from "../models/organisation.model.js";
 import { getProfileByUserId } from "../models/profile.model.js";
 import { getUserByIDModel } from "../models/user.model.js";
@@ -68,6 +68,14 @@ export const getAllMembersofOrganisationController = asyncHandler(async (req, re
     const result = await getAllMembersofOrganisation(id);
 
     sendSuccess(res, result, "Organisation members retrieved successfully", 200);
+});
+
+export const getAllInvitesOfOrganisationController = asyncHandler(async (req, res, next) => {
+    const { id } = req.params;
+
+    const result = await getAllInvitesOfOrganisation(id);
+
+    sendSuccess(res, result, "Organisation invites retrieved successfully", 200);
 });
 
 export const getOrgsByUserIDController = asyncHandler(async (req, res, next) => {
