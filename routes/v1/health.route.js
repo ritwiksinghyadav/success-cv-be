@@ -4,6 +4,7 @@ import { getQueueStats } from '../../queues/resume-analysis.queue.js';
 import { sendSuccess, sendError } from '../../utils/apiHelpers.js';
 import logger from '../../middleware/logger.js';
 import cacheService from '../../services/cache.service.js';
+import { sendVerificationEmail } from '../../services/email/emailTrigger.js';
 
 const router = Router();
 
@@ -11,9 +12,9 @@ const router = Router();
 router.get('/redis', async (req, res, next) => {
     try {
         const health = await checkRedisHealth();
-        
+
         const allConnected = health.cache.connected && health.queue.connected;
-        
+
         if (allConnected) {
             sendSuccess(res, health, 'Redis connections healthy');
         } else {
@@ -67,7 +68,7 @@ router.get('/full', async (req, res, next) => {
         };
 
         const allHealthy = redisHealth.cache.connected && redisHealth.queue.connected;
-        
+
         if (allHealthy) {
             sendSuccess(res, health, 'All systems healthy');
         } else {
@@ -79,4 +80,9 @@ router.get('/full', async (req, res, next) => {
     }
 });
 
+router.get("/email-check", async (req, res) => {
+    logger.info("Email service health check requested");
+    await sendVerificationEmail("ritwik@yopmail.com", "Ritwik", "123456");
+    sendSuccess(res, { emailService: "operational" }, "Email service is operational");
+});
 export const healthRoutes = router;

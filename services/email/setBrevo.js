@@ -1,36 +1,70 @@
-import { TransactionalEmailsApi, SendSmtpEmail } from "@getbrevo/brevo";
+import axios from 'axios';
 
-let emailAPI = new TransactionalEmailsApi();
-emailAPI.authentications.apiKey.apiKey = process.env.BREVO_API_KEY;
-
+/**
+ * Send email using Brevo HTTP API
+ */
 export const sendEmail = async (to, subject, htmlContent, from = { email: "ritwikfullstack@gmail.com" }) => {
-    const email = new SendSmtpEmail();
-    email.sender = from;
-    email.to = [{ email: to }];
-    email.subject = subject;
-    email.htmlContent = htmlContent;
+    // Validate API key
+    if (!process.env.BREVO_API_KEY) {
+        const error = "BREVO_API_KEY is not configured in environment variables";
+        console.error("Brevo configuration error:", error);
+        return { success: false, error };
+    }
+
+    // Validate input parameters
+    if (!to || !subject || !htmlContent) {
+        const error = "Missing required parameters: to, subject, or htmlContent";
+        console.error("Email validation error:", error);
+        return { success: false, error };
+    }
 
     try {
-        const response = await emailAPI.sendTransacEmail(email);
+        console.log("Sending email via Brevo HTTP API...", {
+            to,
+            subject,
+            apiKeyLength: process.env.BREVO_API_KEY?.length,
+            apiKeyPrefix: process.env.BREVO_API_KEY?.substring(0, 20) + "..."
+        });
+        
+        const emailData = {
+            sender: from,
+            to: [{ email: to }],
+            subject: subject,
+            htmlContent: htmlContent
+        };
+
+        const response = await axios.post('https://api.brevo.com/v3/smtp/email', emailData, {
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'api-key': process.env.BREVO_API_KEY
+            }
+        });
+
         console.log("Email sent successfully", {
             to,
             subject,
-            messageId: response.messageId
+            messageId: response.data.messageId
         });
 
-        return { success: true, response: response };
+        return { success: true, response: response.data };
     } catch (error) {
-        console.log("Error sending email", {
+        console.error("Brevo API Error:", {
             to,
             subject,
-            error: error.message
+            error: error.message,
+            status: error.response?.status,
+            statusText: error.response?.statusText,
+            data: error.response?.data,
+            apiKeySet: !!process.env.BREVO_API_KEY
         });
+        
         return { success: false, error: error.message };
     }
 };
 
 /**
- * Send bulk emails by calling sendEmail function one by one
+ * Send bulk emails using HTTP API
  * @param {Array} recipients - Array of email addresses: ["user1@example.com", "user2@example.com"]
  * @param {string} subject - Email subject
  * @param {string} htmlContent - HTML content for the email
@@ -73,12 +107,12 @@ export const sendBulkEmail = async (
     // Send emails one by one
     for (let i = 0; i < recipients.length; i++) {
         const email = recipients[i];
-        
+
         console.log(`Processing email ${i + 1}/${recipients.length}: ${email}`);
-        
+
         try {
             const result = await sendEmail(email, subject, htmlContent, from);
-            
+
             if (result.success) {
                 results.successful++;
                 results.successfulEmails.push({
