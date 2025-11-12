@@ -15,6 +15,8 @@
  *     description: Real-time updates via Server-Sent Events
  *   - name: Health
  *     description: Health check and system monitoring endpoints
+ *   - name: Upload
+ *     description: File upload with Azure Blob Storage presigned URLs
  */
 
 /**
