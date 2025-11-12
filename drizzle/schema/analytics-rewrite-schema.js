@@ -1,5 +1,5 @@
 import { boolean, integer, pgTable, timestamp, varchar, text, uuid } from "drizzle-orm/pg-core";
-import { usersTable, candidatesTable } from "./auth";
+import { usersTable, candidatesTable } from "./auth.js";
 
 export const userDocumentTable = pgTable("documents", {
     id: integer().primaryKey().generatedAlwaysAsIdentity(),
@@ -17,7 +17,7 @@ export const analysisTable = pgTable("analyses", {
     userID: integer("userID").references(() => usersTable.id).notNull(),
     documentID: integer("documentID").references(() => userDocumentTable.id).notNull(),
     status: varchar({ length: 50 }).default("pending").notNull(), // e.g., 'pending', 'completed', 'failed'
-    jpbID: varchar({ length: 255 }), // ID from jpb service
+    jobID: varchar({ length: 255 }), // ID from job service
     createdAt: timestamp().defaultNow().notNull(),
     updatedAt: timestamp().defaultNow().notNull(),
     meta: text(),

@@ -4,6 +4,7 @@ import { sendSuccess } from "../../utils/apiHelpers.js";
 import { authenticateUser } from "../../middleware/authenticate-routes.js";
 import { getUserByIdController, getUserProfileByUserID } from "../../controllers/user.controller.js";
 import { createOrgByUserIDController, getOrgsByUserIDController } from "../../controllers/organisation.controller.js";
+import { createResumeController } from "../../controllers/analysis-resume-rewrite.controller.js";
 
 const router = Router();
 
@@ -46,5 +47,11 @@ router.get('/:id/profile', (req, res, next) => {
     logger.info("API v1 AUTH User profile route accessed");
     next()
 }, getUserProfileByUserID);
+
+router.post('/:id/resumes', (req, res, next) => {
+    const userId = req.params.id;
+    logger.info(`API v1 AUTH User resumes route accessed for user ID: ${userId}`);
+    next();
+}, createResumeController);
 
 export const userRoutes = router;

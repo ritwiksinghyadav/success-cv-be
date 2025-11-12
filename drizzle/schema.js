@@ -15,3 +15,14 @@ export {
     orgMembersTable,
     inviteTable
 } from './schema/organisation.js';
+
+export {
+    userDocumentTable,
+    analysisTable,
+    processedAndRawDataTable,
+    rewritesTable,
+    candidateDocumentTable,
+    candidateAnalysisTable,
+    candidateProcessedAndRawDataTable,
+    candidateRewritesTable
+} from './schema/analytics-rewrite-schema.js';

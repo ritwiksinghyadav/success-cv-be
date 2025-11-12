@@ -17,6 +17,10 @@ class Logger {
         console.warn(`[${getTimestamp()}] WARN: ${message}`, meta);
     }
 
+    debug(message, meta = {}) {
+        console.debug(`[${getTimestamp()}] DEBUG: ${message}`, meta);
+    }
+
     // Log API requests
     request(req, res, duration) {
         const statusCode = res.statusCode;
@@ -26,16 +30,16 @@ class Logger {
         const body = req.body;
         const token = req.headers['authorization'] ? req.headers['authorization'].split(' ')[1] : null;
         const refreshToken = req.headers['x-refresh-token'] || null;
-        
+
         const logMessage = `${method} ${url} - ${statusCode} (${duration}ms)`;
-        
+
         const logData = {
             // headers,
             body,
             ...(token && { token }),
             ...(refreshToken && { refreshToken })
         };
-        
+
         if (statusCode >= 400) {
             this.error(`API Call Failed: ${logMessage}`, logData);
         } else {
