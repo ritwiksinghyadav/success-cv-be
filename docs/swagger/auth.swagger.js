@@ -70,6 +70,9 @@
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/LoginRequest'
+ *           example:
+ *             email: "ritwik2@yopmail.com"
+ *             password: "password"
  *     responses:
  *       200:
  *         description: User successfully logged in

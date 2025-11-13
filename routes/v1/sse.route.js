@@ -1,21 +1,15 @@
 import { Router } from 'express';
 import {
-    connect,
-    subscribeToJob,
-    subscribeToQueue,
-    unsubscribeFromJob,
-    unsubscribeFromQueue,
+    connectToJob,
     getStats
 } from '../../controllers/sse.controller.js';
 
 const router = Router();
 
-// SSE Routes
-router.get('/connect', connect);
-router.post('/:connectionId/subscribe/job/:jobId', subscribeToJob);
-router.post('/:connectionId/subscribe/queue/:queueName', subscribeToQueue);
-router.post('/:connectionId/unsubscribe/job/:jobId', unsubscribeFromJob);
-router.post('/:connectionId/unsubscribe/queue/:queueName', unsubscribeFromQueue);
+// Primary SSE route - connect and auto-subscribe to job
+router.get('/job/:jobId', connectToJob);
+
+// Statistics endpoint (optional, for monitoring)
 router.get('/stats', getStats);
 
 export default router;

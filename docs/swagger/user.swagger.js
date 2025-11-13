@@ -337,7 +337,7 @@
  * @swagger
  * /api/v1/user/{id}/resumes:
  *   post:
- *     summary: Create resume for user
+ *     summary: Create resume for user and enqueue analysis
  *     tags: [User]
  *     security:
  *       - bearerAuth: []
@@ -356,28 +356,24 @@
  *             type: object
  *             required:
  *               - title
- *               - content
+ *               - fileURL
  *             properties:
  *               title:
  *                 type: string
  *                 minLength: 1
  *                 maxLength: 200
  *                 example: Software Engineer Resume
- *               content:
- *                 type: string
- *                 description: Resume content or file URL
- *                 example: "Experienced software engineer with 5+ years..."
- *               fileName:
- *                 type: string
- *                 description: Original filename if uploaded
- *                 example: john_doe_resume.pdf
- *               fileUrl:
+ *               fileURL:
  *                 type: string
  *                 description: URL to uploaded resume file
- *                 example: https://storage.example.com/resumes/file.pdf
+ *                 example: https://storage.example.com/resumes/john_doe_resume.pdf
+ *               meta:
+ *                 type: object
+ *                 description: Optional metadata to pass to analysis engine (tags, job preferences)
+ *                 example: { "source": "web-upload", "tags": ["javascript","react"] }
  *     responses:
  *       201:
- *         description: Resume created successfully
+ *         description: Analysis record created and job enqueued
  *         content:
  *           application/json:
  *             schema:
@@ -388,25 +384,49 @@
  *                   example: true
  *                 message:
  *                   type: string
- *                   example: Resume created successfully
+ *                   example: Document created successfully
  *                 data:
  *                   type: object
  *                   properties:
  *                     id:
  *                       type: string
- *                     userId:
+ *                       description: Analysis record ID
+ *                     userID:
  *                       type: string
- *                     title:
+ *                     documentID:
  *                       type: string
- *                     content:
+ *                     jobID:
  *                       type: string
- *                     fileName:
+ *                       example: resume-123-1699267200000
+ *                     status:
  *                       type: string
- *                     fileUrl:
- *                       type: string
+ *                       example: pending
+ *                     meta:
+ *                       type: object
  *                     createdAt:
  *                       type: string
  *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                     steps:
+ *                       type: string
+ *                       example: Use the jobId to track the analysis process
+ *             example:
+ *               success: true
+ *               message: Document created successfully
+ *               data:
+ *                 id: 123
+ *                 userID: 1
+ *                 documentID: 456
+ *                 jobID: "resume-123-1699267200000"
+ *                 status: pending
+ *                 meta:
+ *                   source: web-upload
+ *                   tags: [javascript, react]
+ *                 createdAt: "2025-11-13T10:00:00Z"
+ *                 updatedAt: "2025-11-13T10:00:00Z"
+ *                 steps: "Use the jobId to track the analysis process"
  *       400:
  *         description: Bad request - validation error
  *         content:

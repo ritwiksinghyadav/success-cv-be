@@ -127,12 +127,12 @@ const options = {
                         email: {
                             type: 'string',
                             format: 'email',
-                            example: 'user@example.com'
+                            example: 'ritwik2@yopmail.com'
                         },
                         password: {
                             type: 'string',
                             format: 'password',
-                            example: 'SecurePass123!'
+                            example: 'password'
                         }
                     }
                 },
