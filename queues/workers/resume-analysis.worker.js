@@ -26,6 +26,58 @@ logger.info('Worker starting with Redis config', {
 });
 
 /**
+ * Initialize PubSub service with retry logic
+ */
+async function initPubSubService(maxRetries = 3, delayMs = 2000) {
+    const redisConfig = {
+        host: process.env.REDIS_HOST || 'localhost',
+        port: parseInt(process.env.REDIS_PORT) || 6379,
+        username: process.env.REDIS_USERNAME || 'default',
+        password: process.env.REDIS_PASSWORD || undefined,
+        db: parseInt(process.env.REDIS_DB_CACHE) || 0,
+        tls: process.env.REDIS_TLS === 'true'
+    };
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            logger.info(`Initializing PubSub service in worker (attempt ${attempt}/${maxRetries})`, redisConfig);
+            await pubSubService.initialize(redisConfig);
+            logger.info('✅ PubSub service initialized successfully in worker');
+            return true;
+        } catch (error) {
+            logger.error(`❌ PubSub initialization failed (attempt ${attempt}/${maxRetries})`, { 
+                error: error.message,
+                stack: error.stack 
+            });
+            
+            if (attempt < maxRetries) {
+                logger.info(`Retrying PubSub initialization in ${delayMs}ms...`);
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+            } else {
+                logger.error('Failed to initialize PubSub after all retry attempts');
+                throw new Error(`PubSub initialization failed after ${maxRetries} attempts: ${error.message}`);
+            }
+        }
+    }
+}
+
+// Initialize PubSub service before starting worker
+try {
+    logger.info('🚀 Starting worker initialization...');
+    await initPubSubService(
+        parseInt(process.env.PUBSUB_INIT_RETRIES || '3'),
+        parseInt(process.env.PUBSUB_INIT_DELAY_MS || '2000')
+    );
+} catch (error) {
+    logger.error('🛑 Worker startup failed - PubSub initialization error', { 
+        error: error.message,
+        stack: error.stack 
+    });
+    logger.error('Worker cannot start without PubSub service. Exiting...');
+    process.exit(1);
+}
+
+/**
  * Resume Analysis Worker
  * This file should be run on a separate server/process dedicated to processing jobs
  * 
@@ -33,226 +85,257 @@ logger.info('Worker starting with Redis config', {
  * Or set NODE_ENV=worker and start the server
  */
 
+// Import utilities
+import { extractFileContent } from '../../utils/fileExtraction.js';
+import { executeWithProgress, publishJobUpdate } from '../../utils/progressTracking.js';
+import { validateResumeData, isValidResume, extractEmail } from '../../utils/resumeSchema.js';
+import { db } from '../../config/db.js';
+import { analysisTable, userDocumentTable, processedAndRawDataTable } from '../../drizzle/schema/analytics-rewrite-schema.js';
+import { eq } from 'drizzle-orm';
+import { generateAiResponseObject } from '../../services/aiService/index.js';
+import { candidateSchemaSimplified } from '../workerSupport/resume-analysis/objectSchema.js';
+import { getResumeAnalysisPrompt } from '../workerSupport/resume-analysis/prompt.js';
+
 /**
  * Process resume analysis job
  * @param {Object} job - BullMQ job object
  * @returns {Promise<Object>} Analysis result
  */
 async function processResumeAnalysis(job) {
-    const { resumeId, candidateId, organisationId, fileUrl, fileName, mimeType } = job.data;
+    const { analysisID, userID, resumeId, documentData, meta } = job.data;
+    const { title, fileURL } = documentData || {};
+    
+    logger.info('[RESUME_ANALYSIS] Starting job', { 
+        jobId: job.id,
+        analysisID,
+        userID,
+        resumeId,
+        fileURL
+    });
 
     try {
-        logger.info('Processing resume analysis', { 
-            jobId: job.id, 
-            resumeId, 
-            candidateId,
-            fileName 
+        // Step 1: Initialize and update status
+        await executeWithProgress(job.id, 'INIT', async () => {
+            await db.update(analysisTable)
+                .set({
+                    status: 'processing',
+                    updatedAt: new Date()
+                })
+                .where(eq(analysisTable.id, analysisID));
+                
+            logger.info('[RESUME_ANALYSIS] Analysis record updated to processing');
         });
 
-        // Publish job started event
-        await pubSubService.publishJobUpdate(job.id, {
-            status: 'started',
-            progress: 0,
-            resumeId,
-            candidateId,
-            message: 'Resume analysis started'
+        // Step 2: Download resume file
+        let fileContent;
+        await executeWithProgress(job.id, 'DOWNLOADING', async () => {
+            logger.info('[RESUME_ANALYSIS] Downloading file from:', fileURL);
+            // File will be downloaded in extraction step
         });
 
-        // Update progress
-        await job.updateProgress(10);
-        await pubSubService.publishJobUpdate(job.id, {
-            status: 'in_progress',
-            progress: 10,
-            stage: 'initializing',
-            message: 'Initializing resume analysis'
-        });
-
-        // Step 1: Download/fetch the resume file (placeholder)
-        logger.info('Fetching resume file', { resumeId, fileUrl });
-        await job.updateProgress(20);
-        await pubSubService.publishJobUpdate(job.id, {
-            status: 'in_progress',
-            progress: 20,
-            stage: 'fetching',
-            message: 'Fetching resume file'
-        });
-        
-        // TODO: Implement file fetching from Azure Blob Storage or local storage
-        // const fileBuffer = await fetchResumeFile(fileUrl);
-
-        // Step 2: Parse the resume based on file type (placeholder)
-        logger.info('Parsing resume', { resumeId, mimeType });
-        await job.updateProgress(40);
-        await pubSubService.publishJobUpdate(job.id, {
-            status: 'in_progress',
-            progress: 40,
-            stage: 'parsing',
-            message: 'Parsing resume content'
-        });
-        
-        // TODO: Implement parsing logic
-        // - PDF: Use pdf-parse or pdfjs-dist
-        // - DOCX: Use mammoth or docx-parser
-        // const parsedData = await parseResume(fileBuffer, mimeType);
-
-        // Placeholder parsed data
-        const parsedData = {
-            text: 'Sample resume text content...',
-            metadata: {
-                fileName,
-                mimeType,
-                parsedAt: new Date().toISOString()
+        // Step 3: Extract text content from file
+        fileContent = await executeWithProgress(job.id, 'EXTRACTING', async () => {
+            logger.info('[RESUME_ANALYSIS] Extracting content from file');
+            const content = await extractFileContent(fileURL);
+            
+            if (!content || content.trim().length === 0) {
+                throw new Error('Extracted content is empty - file may be corrupted or unsupported');
             }
-        };
-
-        // Step 3: Extract structured information (placeholder)
-        logger.info('Extracting resume information', { resumeId });
-        await job.updateProgress(60);
-        await pubSubService.publishJobUpdate(job.id, {
-            status: 'in_progress',
-            progress: 60,
-            stage: 'extracting',
-            message: 'Extracting structured information'
-        });
-        
-        // TODO: Implement extraction logic
-        // - Extract name, email, phone
-        // - Extract education
-        // - Extract work experience
-        // - Extract skills
-        // - Extract certifications
-        // const extractedInfo = await extractInformation(parsedData.text);
-
-        // Placeholder extracted info
-        const extractedInfo = {
-            personalInfo: {
-                name: 'John Doe',
-                email: 'john@example.com',
-                phone: '+1234567890',
-            },
-            education: [
-                {
-                    degree: 'Bachelor of Science',
-                    field: 'Computer Science',
-                    institution: 'University Name',
-                    year: '2020'
-                }
-            ],
-            experience: [
-                {
-                    title: 'Software Engineer',
-                    company: 'Tech Company',
-                    duration: '2020-2023',
-                    description: 'Developed web applications...'
-                }
-            ],
-            skills: ['JavaScript', 'Node.js', 'React', 'PostgreSQL'],
-            certifications: []
-        };
-
-        // Step 4: Analyze and score resume (placeholder)
-        logger.info('Analyzing resume quality', { resumeId });
-        await job.updateProgress(80);
-        await pubSubService.publishJobUpdate(job.id, {
-            status: 'in_progress',
-            progress: 80,
-            stage: 'analyzing',
-            message: 'Analyzing resume quality and scoring'
-        });
-        
-        // TODO: Implement analysis logic
-        // - Calculate ATS score
-        // - Check for keywords
-        // - Assess formatting
-        // - Evaluate completeness
-        // const analysis = await analyzeResume(extractedInfo, parsedData.text);
-
-        // Placeholder analysis
-        const analysis = {
-            atsScore: 85,
-            completeness: 90,
-            keywordMatch: 75,
-            suggestions: [
-                'Add more quantifiable achievements',
-                'Include relevant certifications',
-                'Expand technical skills section'
-            ],
-            strengths: [
-                'Clear work experience',
-                'Relevant education',
-                'Good skill set'
-            ],
-            weaknesses: [
-                'Missing contact information',
-                'Could add more detail to projects'
-            ]
-        };
-
-        // Step 5: Store results (placeholder)
-        logger.info('Storing analysis results', { resumeId });
-        await job.updateProgress(90);
-        await pubSubService.publishJobUpdate(job.id, {
-            status: 'in_progress',
-            progress: 90,
-            stage: 'storing',
-            message: 'Storing analysis results'
-        });
-        
-        // TODO: Implement storage logic
-        // - Save parsed data to database
-        // - Save analysis results to database
-        // - Cache results in Redis
-        // - Update resume status
-        // await saveResumeAnalysis(resumeId, { parsedData, extractedInfo, analysis });
-
-        // Final result
-        await job.updateProgress(100);
-
-        const result = {
-            resumeId,
-            candidateId,
-            organisationId,
-            status: 'completed',
-            parsedData,
-            extractedInfo,
-            analysis,
-            completedAt: new Date().toISOString()
-        };
-
-        logger.info('Resume analysis completed', { 
-            jobId: job.id, 
-            resumeId,
-            atsScore: analysis.atsScore 
+            
+            logger.info('[RESUME_ANALYSIS] ✅ Extracted', content.length, 'characters');
+            return content;
         });
 
-        // Publish job completed event
-        await pubSubService.publishJobUpdate(job.id, {
-            status: 'completed',
-            progress: 100,
-            message: 'Resume analysis completed successfully',
-            result: {
-                resumeId,
-                atsScore: analysis.atsScore,
-                completeness: analysis.completeness,
-                keywordMatch: analysis.keywordMatch
+        // Step 4: Parse resume content using AI
+        const parsedData = await executeWithProgress(job.id, 'PARSING', async () => {
+            logger.info('[RESUME_ANALYSIS] Parsing resume content with AI');
+            
+            // Use AI to parse and analyze resume
+            const result = await generateAiResponseObject({
+                filePath: fileContent, // Use extracted text content
+                schema: candidateSchemaSimplified,
+                system: getResumeAnalysisPrompt(),
+                content: `Analyze this resume and identify all mistakes, issues, and improvement opportunities:\n\n${fileContent}`
+            });
+            
+            logger.info('[RESUME_ANALYSIS] AI parsing completed:', {
+                hasPersonalInfo: !!result.personal_info,
+                experienceCount: result.experiences?.length || 0,
+                educationCount: result.education?.length || 0,
+                criticalMistakes: result.critical_mistakes?.length || 0,
+                majorIssues: result.major_issues?.length || 0,
+                overallScore: result.relevance?.['Overall Score'] || 0
+            });
+            
+            return result;
+        });
+
+        // Step 5: Validate resume data
+        let resumeData;
+        await executeWithProgress(job.id, 'ANALYZING', async () => {
+            logger.info('[RESUME_ANALYSIS] Validating AI-parsed resume data');
+            
+            // The AI already validated and structured the data
+            resumeData = parsedData;
+            
+            // Additional validation checks
+            if (!parsedData.personal_info?.email) {
+                logger.warn('[RESUME_ANALYSIS] No email found in resume');
             }
+            
+            if (!parsedData.experiences || parsedData.experiences.length === 0) {
+                logger.warn('[RESUME_ANALYSIS] No work experience found in resume');
+            }
+            
+            logger.info('[RESUME_ANALYSIS] ✅ Resume data validated successfully');
         });
 
-        return result;
+        // Step 6: Extract scores from AI analysis
+        await executeWithProgress(job.id, 'SCORING', async () => {
+            logger.info('[RESUME_ANALYSIS] Extracting scores from AI analysis');
+            
+            // AI already calculated all scores in the schema
+            const scores = {
+                overall_score: resumeData.relevance?.['Overall Score'] || 0,
+                job_fit_score: resumeData.JobFitScore || 0,
+                resume_quality_score: resumeData.resume_quality?.overall_quality_score || 0,
+                ats_score: resumeData.resume_quality?.ats_compatibility_score || 0,
+                skills_score: resumeData.relevance?.['Skills Relevance'] || 0,
+                experience_score: resumeData.relevance?.['Work Experience'] || 0,
+                education_score: resumeData.relevance?.['Education'] || 0
+            };
+            
+            logger.info('[RESUME_ANALYSIS] Scores extracted:', {
+                overall: scores.overall_score,
+                jobFit: scores.job_fit_score,
+                resumeQuality: scores.resume_quality_score,
+                ats: scores.ats_score,
+                criticalMistakes: resumeData.critical_mistakes?.length || 0,
+                majorIssues: resumeData.major_issues?.length || 0
+            });
+            
+            // Store scores for easy access
+            resumeData._scores = scores;
+        });
+
+        // Step 7: Save results to database
+        await executeWithProgress(job.id, 'SAVING', async () => {
+            logger.info('[RESUME_ANALYSIS] Saving results to database');
+            
+            const scores = resumeData._scores || {};
+            
+            // Save processed data to processedAndRawDataTable
+            const [processedDataRecord] = await db.insert(processedAndRawDataTable)
+                .values({
+                    analysisID,
+                    documentID: resumeId,
+                    rawData: fileContent, // Original extracted text
+                    processedData: JSON.stringify(resumeData), // AI-processed structured data with mistakes analysis
+                    meta: JSON.stringify({
+                        scores: scores,
+                        criticalMistakesCount: resumeData.critical_mistakes?.length || 0,
+                        majorIssuesCount: resumeData.major_issues?.length || 0,
+                        minorImprovementsCount: resumeData.minor_improvements?.length || 0,
+                        optimizationOpportunitiesCount: resumeData.optimization_opportunities?.length || 0
+                    })
+                })
+                .returning();
+            
+            // Update analysis status to completed
+            await db.update(analysisTable)
+                .set({
+                    status: 'completed',
+                    completedAt: new Date(),
+                    updatedAt: new Date(),
+                    meta: JSON.stringify({
+                        processedDataID: processedDataRecord.id,
+                        scores: scores,
+                        summary: {
+                            overallScore: scores.overall_score,
+                            jobFitScore: scores.job_fit_score,
+                            resumeQualityScore: scores.resume_quality_score,
+                            atsScore: scores.ats_score,
+                            totalMistakes: (resumeData.critical_mistakes?.length || 0) + (resumeData.major_issues?.length || 0),
+                            improvementPotential: resumeData.resume_quality?.improvement_points || 0
+                        }
+                    })
+                })
+                .where(eq(analysisTable.id, analysisID));
+            
+            logger.info('[RESUME_ANALYSIS] ✅ Results saved to database', {
+                processedDataID: processedDataRecord.id
+            });
+        });
+
+        // Step 8: Complete
+        await executeWithProgress(job.id, 'COMPLETE', async () => {
+            const scores = resumeData._scores || {};
+            
+            await publishJobUpdate(job.id, {
+                progress: 100,
+                status: 'completed',
+                message: 'Resume analysis completed successfully!',
+                result: {
+                    analysisID,
+                    scores: {
+                        overall: scores.overall_score,
+                        jobFit: scores.job_fit_score,
+                        resumeQuality: scores.resume_quality_score,
+                        ats: scores.ats_score
+                    },
+                    mistakes: {
+                        critical: resumeData.critical_mistakes?.length || 0,
+                        major: resumeData.major_issues?.length || 0,
+                        minor: resumeData.minor_improvements?.length || 0
+                    },
+                    improvementPotential: resumeData.resume_quality?.improvement_points || 0,
+                    hasImprovementPlan: !!(resumeData.improvement_plan)
+                }
+            });
+        });
+
+        logger.info('[RESUME_ANALYSIS] ✅ Job completed successfully', {
+            jobId: job.id,
+            analysisID
+        });
+
+        return {
+            success: true,
+            analysisID,
+            resumeData
+        };
 
     } catch (error) {
-        logger.error('Resume analysis failed', { 
-            jobId: job.id, 
-            resumeId, 
+        logger.error('[RESUME_ANALYSIS] ❌ Job failed', {
+            jobId: job.id,
+            analysisID,
             error: error.message,
-            stack: error.stack 
+            stack: error.stack
         });
 
-        // Publish job failed event
-        await pubSubService.publishJobUpdate(job.id, {
+        // Update analysis status to failed
+        try {
+            await db.update(analysisTable)
+                .set({
+                    status: 'failed',
+                    updatedAt: new Date(),
+                    meta: JSON.stringify({
+                        error: error.message,
+                        errorStack: error.stack
+                    })
+                })
+                .where(eq(analysisTable.id, analysisID));
+        } catch (dbError) {
+            logger.error('[RESUME_ANALYSIS] Failed to update error status', { 
+                error: dbError.message 
+            });
+        }
+
+        // Publish error update
+        await publishJobUpdate(job.id, {
+            progress: 0,
             status: 'failed',
-            progress: job.progress || 0,
-            message: 'Resume analysis failed',
+            message: `Resume analysis failed: ${error.message}`,
             error: error.message
         });
 
