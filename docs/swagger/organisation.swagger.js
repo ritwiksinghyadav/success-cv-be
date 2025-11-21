@@ -506,3 +506,75 @@
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
+
+/**
+ * @swagger
+ * /api/v1/organisations/{id}/candidates:
+ *   get:
+ *     summary: Get all candidates for an organisation
+ *     tags: [Organisation]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: Organisation ID
+ *     responses:
+ *       200:
+ *         description: Organisation candidates retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: Organisation candidates retrieved successfully
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: integer
+ *                         example: 1
+ *                       fullname:
+ *                         type: string
+ *                         example: "Jane Smith"
+ *                       email:
+ *                         type: string
+ *                         format: email
+ *                         example: "jane.smith@example.com"
+ *                       organisationID:
+ *                         type: integer
+ *                         example: 1
+ *                       isVerified:
+ *                         type: boolean
+ *                         example: true
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2024-01-15T10:30:00Z"
+ *                       updatedAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2024-01-15T10:30:00Z"
+ *       401:
+ *         description: Unauthorized
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Organisation not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */

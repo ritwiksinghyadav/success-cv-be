@@ -382,3 +382,29 @@ export const resetPasswordUsingToken = async (token, newPassword) => {
     }).where(eq(forgotPasswordTokenTable.id, tokenRecord.id));
     return true;
 };
+
+/**
+ * Get all candidates for an organisation
+ */
+export const getCandidatesByOrganisationId = async (organisationID) => {
+    try {
+        const validOrgId = validateInteger(organisationID, "Organisation ID", { min: 1 });
+
+        const candidates = await db.select()
+            .from(candidatesTable)
+            .where(
+                and(
+                    eq(candidatesTable.organisationID, validOrgId),
+                    isNull(candidatesTable.deletedAt)
+                )
+            );
+
+        // Exclude sensitive fields
+        return candidates.map(candidate => excludeFields(candidate, ['passwordHash', 'deletedAt']));
+    } catch (error) {
+        if (error instanceof AppError) {
+            throw error;
+        }
+        throw new AppError(`Failed to get candidates by organisation: ${error.message}`, 500);
+    }
+};

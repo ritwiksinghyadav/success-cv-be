@@ -11,6 +11,8 @@
  *     description: Organisation management, members, and invitations
  *   - name: Invites
  *     description: Invitation management and acceptance endpoints
+ *   - name: Resume Analysis
+ *     description: Resume analysis management and data retrieval endpoints
  *   - name: SSE (Server-Sent Events)
  *     description: Real-time updates via Server-Sent Events
  *   - name: Health

@@ -8,6 +8,7 @@ import { invitesRoutes } from "./invites.route.js";
 import { healthRoutes } from "./health.route.js";
 import sseRoutes from "./sse.route.js";
 import { uploadRoutes } from "./upload.route.js";
+import { resumeAnalysisRoutes } from "./resume-analysis.route.js";
 
 const router = Router();
 
@@ -34,6 +35,7 @@ router.use('/user', userRoutes);
 router.use('/organisations', organisationRoutes);
 router.use('/invites', invitesRoutes);
 router.use('/sse', sseRoutes);
-router.use('/upload', uploadRoutes)
+router.use('/upload', uploadRoutes);
+router.use('/resume-analysis', resumeAnalysisRoutes);
 
 export const v1Routes = router;

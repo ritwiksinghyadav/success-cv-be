@@ -1,7 +1,7 @@
 import { Router } from "express";
 import logger from "../../middleware/logger.js";
 import { sendSuccess } from "../../utils/apiHelpers.js";
-import { createOrgByUserIDController, getAllMembersofOrganisationController, getAllInvitesOfOrganisationController, inviteAMemberController } from "../../controllers/organisation.controller.js";
+import { createOrgByUserIDController, getAllMembersofOrganisationController, getAllInvitesOfOrganisationController, inviteAMemberController, getAllCandidatesOfOrganisationController } from "../../controllers/organisation.controller.js";
 import { authenticateUser, commonAuthenticate } from "../../middleware/authenticate-routes.js";
 
 const router = Router();
@@ -53,5 +53,11 @@ router.patch('/:id/members/:memberId/role', (req, res, next) => {
     logger.info(`API v1 AUTH Update member role route accessed for organisation ID: ${orgId}, member ID: ${memberId}`);
     sendSuccess(res, { orgId, memberId }, `Success-CV API v1 AUTH Update member role for organisation ID: ${orgId}, member ID: ${memberId}`);
 });
+
+router.get('/:id/candidates', (req, res, next) => {
+    const orgId = req.params.id;
+    logger.info(`API v1 AUTH Organisation candidates route accessed for organisation ID: ${orgId}`);
+    next();
+}, getAllCandidatesOfOrganisationController);
 
 export const organisationRoutes = router;

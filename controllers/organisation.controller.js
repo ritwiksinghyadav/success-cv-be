@@ -80,10 +80,10 @@ export const getAllInvitesOfOrganisationController = asyncHandler(async (req, re
 
 export const getOrgsByUserIDController = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
-    
+
     const validatedId = validateInteger(id, 'User ID');
     const user = await getUserByIDModel(validatedId);
-    
+
     if (!user) {
         return next(new AppError('User not found', 404));
     }
@@ -91,4 +91,16 @@ export const getOrgsByUserIDController = asyncHandler(async (req, res, next) => 
     const organisations = await getOrgsByUserID(validatedId);
 
     sendSuccess(res, organisations, "User organisations retrieved successfully", 200);
+});
+
+export const getAllCandidatesOfOrganisationController = asyncHandler(async (req, res, next) => {
+    const { id } = req.params;
+
+    const validatedOrgId = validateInteger(id, 'Organisation ID');
+
+    // Import the function dynamically to avoid circular dependencies
+    const { getCandidatesByOrganisationId } = await import('../models/candidate.model.js');
+    const candidates = await getCandidatesByOrganisationId(validatedOrgId);
+
+    sendSuccess(res, candidates, "Organisation candidates retrieved successfully", 200);
 });
