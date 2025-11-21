@@ -95,6 +95,7 @@ import { eq } from 'drizzle-orm';
 import { generateAiResponseObject } from '../../services/aiService/index.js';
 import { candidateSchemaSimplified } from '../workerSupport/resume-analysis/objectSchema.js';
 import { getResumeAnalysisPrompt } from '../workerSupport/resume-analysis/prompt.js';
+import { getFileAccessUrl } from '../../services/Integraion/uploadImage.js';
 
 /**
  * Process resume analysis job
@@ -126,17 +127,36 @@ async function processResumeAnalysis(job) {
             logger.info('[RESUME_ANALYSIS] Analysis record updated to processing');
         });
 
-        // Step 2: Download resume file
-        let fileContent;
+        // Step 2: Generate SAS token URL for file access
+        let accessUrl;
         await executeWithProgress(job.id, 'DOWNLOADING', async () => {
-            logger.info('[RESUME_ANALYSIS] Downloading file from:', fileURL);
-            // File will be downloaded in extraction step
+            logger.info('[RESUME_ANALYSIS] Generating access URL for file:', fileURL);
+            
+            // Extract container and blob name from the fileURL
+            // Format: https://{account}.blob.core.windows.net/{container}/{blobName}
+            const urlParts = new URL(fileURL);
+            const pathParts = urlParts.pathname.split('/').filter(Boolean);
+            
+            if (pathParts.length < 2) {
+                throw new Error(`Invalid file URL format: ${fileURL}`);
+            }
+            
+            const containerName = pathParts[0];
+            const blobName = pathParts.slice(1).join('/');
+            
+            logger.info('[RESUME_ANALYSIS] File details:', { containerName, blobName });
+            
+            // Generate SAS token URL with read permissions (60 minute expiry)
+            accessUrl = await getFileAccessUrl(containerName, blobName, 60);
+            
+            logger.info('[RESUME_ANALYSIS] ✅ Generated access URL (expires in 60 minutes)');
         });
 
         // Step 3: Extract text content from file
+        let fileContent;
         fileContent = await executeWithProgress(job.id, 'EXTRACTING', async () => {
-            logger.info('[RESUME_ANALYSIS] Extracting content from file');
-            const content = await extractFileContent(fileURL);
+            logger.info('[RESUME_ANALYSIS] Extracting content from file using access URL');
+            const content = await extractFileContent(accessUrl);
             
             if (!content || content.trim().length === 0) {
                 throw new Error('Extracted content is empty - file may be corrupted or unsupported');

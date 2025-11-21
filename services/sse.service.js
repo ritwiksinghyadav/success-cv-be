@@ -26,8 +26,11 @@ class SSEService {
         res.setHeader('Connection', 'keep-alive');
         res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering
         
-        // Enable CORS for SSE
-        res.setHeader('Access-Control-Allow-Origin', '*');
+        // Enable CORS for SSE - use the origin from the request
+        const origin = req.headers.origin;
+        if (origin) {
+            res.setHeader('Access-Control-Allow-Origin', origin);
+        }
         res.setHeader('Access-Control-Allow-Credentials', 'true');
 
         // Store client connection

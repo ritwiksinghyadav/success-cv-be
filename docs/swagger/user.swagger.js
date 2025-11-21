@@ -355,22 +355,12 @@
  *           schema:
  *             type: object
  *             required:
- *               - title
  *               - fileURL
  *             properties:
- *               title:
- *                 type: string
- *                 minLength: 1
- *                 maxLength: 200
- *                 example: Software Engineer Resume
  *               fileURL:
  *                 type: string
  *                 description: URL to uploaded resume file
  *                 example: https://storage.example.com/resumes/john_doe_resume.pdf
- *               meta:
- *                 type: object
- *                 description: Optional metadata to pass to analysis engine (tags, job preferences)
- *                 example: { "source": "web-upload", "tags": ["javascript","react"] }
  *     responses:
  *       201:
  *         description: Analysis record created and job enqueued
@@ -401,8 +391,6 @@
  *                     status:
  *                       type: string
  *                       example: pending
- *                     meta:
- *                       type: object
  *                     createdAt:
  *                       type: string
  *                       format: date-time
@@ -421,9 +409,6 @@
  *                 documentID: 456
  *                 jobID: "resume-123-1699267200000"
  *                 status: pending
- *                 meta:
- *                   source: web-upload
- *                   tags: [javascript, react]
  *                 createdAt: "2025-11-13T10:00:00Z"
  *                 updatedAt: "2025-11-13T10:00:00Z"
  *                 steps: "Use the jobId to track the analysis process"

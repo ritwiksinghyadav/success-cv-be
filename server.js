@@ -26,7 +26,33 @@ logStartup(PORT, NODE_ENV);
 // Security middleware
 app.use(helmet());
 app.use(cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'],
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps or curl requests)
+        if (!origin) return callback(null, true);
+        
+        // Get allowed origins from environment or use defaults
+        const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || ['http://localhost:3000'];
+        
+        // Check if origin matches any allowed origin
+        const isAllowed = allowedOrigins.some(allowedOrigin => {
+            if (origin === allowedOrigin) return true;
+            
+            // Check for subdomain pattern (e.g., *.localhost:3000)
+            if (allowedOrigin.startsWith('*.')) {
+                const domain = allowedOrigin.substring(2); // Remove '*.'
+                return origin.endsWith(`.${domain}`) || origin === `http://${domain}` || origin === `https://${domain}`;
+            }
+            
+            return false;
+        });
+        
+        if (isAllowed) {
+            callback(null, true);
+        } else {
+            logger.warn('CORS: Blocked origin', { origin });
+            callback(null, false); // Don't throw error, just deny
+        }
+    },
     credentials: true
 }));
 

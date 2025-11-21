@@ -18,7 +18,18 @@ export async function extractFileContent(fileUrl) {
         // Download the file first
         const response = await fetch(fileUrl);
         if (!response.ok) {
-            throw new Error(`Failed to download file: ${response.status}`);
+            const errorMsg = `Failed to download file: ${response.status} ${response.statusText}`;
+            console.error('[FILE_EXTRACTION] ❌ Download failed:', errorMsg);
+            
+            if (response.status === 404) {
+                throw new Error('File not found (404). The file may have been deleted, the URL may have expired, or you may not have permission to access it.');
+            } else if (response.status === 403) {
+                throw new Error('Access denied (403). You do not have permission to access this file. Please ensure the URL includes a valid SAS token.');
+            } else if (response.status >= 500) {
+                throw new Error(`Storage service error (${response.status}). Please try again later.`);
+            } else {
+                throw new Error(errorMsg);
+            }
         }
 
         console.log('[FILE_EXTRACTION] File download response status:', response.status);
@@ -48,11 +59,18 @@ export async function extractFileContent(fileUrl) {
         formData.append('strategy', 'fast'); // Use fast strategy for text extraction
         
         const parserUrl = process.env.RESUME_PARSER_URL;
+        const apiKey = process.env.UNSTRUCTURED_API_KEY;
+        
         if (!parserUrl) {
             throw new Error('RESUME_PARSER_URL environment variable not set');
         }
         
+        if (!apiKey) {
+            throw new Error('UNSTRUCTURED_API_KEY environment variable not set. Please set this in your .env file.');
+        }
+        
         console.log('[FILE_EXTRACTION] Calling parser API:', parserUrl);
+        console.log('[FILE_EXTRACTION] API key configured:', apiKey ? '✓ (present)' : '✗ (missing)');
         
         // Call external parser API
         const parserResponse = await fetch(parserUrl, {
@@ -60,9 +78,7 @@ export async function extractFileContent(fileUrl) {
             body: formData,
             headers: {
                 'Accept': 'application/json',
-                ...(process.env.UNSTRUCTURED_API_KEY && { 
-                    'unstructured-api-key': process.env.UNSTRUCTURED_API_KEY 
-                })
+                'unstructured-api-key': apiKey
             }
         });
         

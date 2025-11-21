@@ -27,21 +27,21 @@ export const createResumeController = asyncHandler(async (req, res, next) => {
     }
 
     // Check for missing required fields
-    const { title, fileURL, meta } = req.body;
-    if (!title || !fileURL) {
-        return next(new AppError('Missing required fields', 400));
+    const { fileURL } = req.body;
+    if (!fileURL) {
+        return next(new AppError('Missing required field: fileURL', 400));
     }
 
     const createdDocument = await createUserDocument(validatedId, {
-        title,
+        title: 'Resume',
         fileURL,
-        meta
+        meta: {}
     });
 
-    const createAnalysis = await createAnalysisRecord(validatedId, createdDocument.id, meta, {
-        title,
+    const createAnalysis = await createAnalysisRecord(validatedId, createdDocument.id, {}, {
+        title: 'Resume',
         fileURL,
-        meta
+        meta: {}
     });
     if (!createAnalysis) {
         return next(new AppError('Analysis creation failed', 500));
